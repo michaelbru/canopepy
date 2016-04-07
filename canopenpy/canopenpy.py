@@ -148,7 +148,7 @@ class Kvaser(canlib.canlib):
             self.openedChannels.remove(ch)
 
 
-    def setCurrentChannel( self,ch ):
+    #def setCurrentChannel( self,ch ):
         '''if two or more channels had been opened then set one of those for read/write 
         caution : this procedure is thread unsafe'''
 
