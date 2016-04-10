@@ -28,6 +28,7 @@
     <Compile Include="canlib___.py" />
     <Compile Include="canlib.py" />
     <Compile Include="canopenpy.py" />
+    <Compile Include="ni8473a.py" />
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="{9a7a9026-48c1-4688-9d5d-e5699d47d074}\3.4" />

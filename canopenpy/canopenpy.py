@@ -1,4 +1,5 @@
 import canlib
+import ni8473a
 import struct
 import queue
 import logging
@@ -111,7 +112,7 @@ class Kvaser(canlib.canlib):
         self.channels = self.getNumberOfChannels()
         #create data structure of list of tuples 
         self.kv = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
-        # save opened channels in data structure
+        # save opened channels in data structure 
         self.openedChannels = SimpleList()
         # baud rates dictionary
         self.BaudTable = {1000000:canlib.canBITRATE_1M,500000:canlib.canBITRATE_500K,
@@ -151,37 +152,82 @@ class Kvaser(canlib.canlib):
     def setCurrentChannel( self,ch ):
         '''if two or more channels had been opened then set one of those for read/write 
         caution : this procedure is thread unsafe'''
+        
+
+    #def ping(self,ch,setCob=None,getCob=None,msg='',Tout = 0.2):
+    #    '''
+    #    [ch] - type integer - number of channel
+    #    [setCob] - type int - communication Id (
+
+    #    [msg] - type str - msg to send '''
+    #    #chHandler1 = self.openedChannels.get(1)[1]
+
+    #    try:
+    #        if  self.openedChannels.get(ch):
+    #            chHandler = self.openedChannels.get(ch)[1]
+    #            chHandler.write(ch,msg)
+    #            n=max(int(Tout/0.001),1)
+    #            while n:
+    #                id, msg, dlc, flg, time,returns = chHandler.read(timeout=Tout)
+
+    #                if  returns == canlib.canOK and id == getCob:
+    #                    return bytearray(msg)
+
+    #                n-=1
+
+    #    except canError as ce:
+    #        logging.error(ce)
+    #    else:
+    #       return msg
+
+class NI_8473(ni8473a.canlib):
+     def __init__(self,):
+        canlib.canlib.__init__(self)
+        # how many channels are set
+        self.channels = self.getNumberOfChannels()
+        #create data structure of list of tuples 
+        self.kv = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
+        # save opened channels in data structure 
+        self.openedChannels = SimpleList()
+        # baud rates dictionary
+        self.BaudTable = {1000000:ni8473a.NC_BAUD_1000K ,500000:ni8473a.NC_BAUD_500K,
+                          250000:ni8473a.NC_BAUD_250K,125000:ni8473a.NC_BAUD_125K,
+                          100000:ni8473a.NC_BAUD_100K}
+        #current channel 
+        self.currentChannel = -1
+
+    def openkvaser(self,channel,bitrate):
+                # if channel is active open channel (kvaser)
+                try:
+                    if channel in [ ch[0]  for ch in self.kv] :
+                        # Don't allow sharing of this circuit between applications
+                        self.ch = self.openChannel(channel, canlib.canOPEN_ACCEPT_VIRTUAL)#canlib.canOPEN_EXCLUSIVE)
+                        print ("Using channel: %s, EAN: %s" % 
+                               (self.ch.getChannelData_Name(), self.ch.getChannelData_EAN()))
+
+                        self.ch.setBusOutputControl(canlib.canDRIVER_NORMAL)
+                        baud = self.BaudTable[bitrate]
+                        self.ch.setBusParams(baud)
+                        self.ch.busOn()
+                        self.openedChannels.add(channel,self.ch)
+                except canError as ce:
+                    logging.error(ce)
+                except KeyError as ke:
+                    logging.error(ke)
 
 
-    def ping(self,ch,setCob=None,getCob=None,Tout = 0.2):
-        '''
-        [ch] - type integer - number of channel
-        [msg] - type str - msg to send '''
-        #chHandler1 = self.openedChannels.get(1)[1]
-
-        try:
-            if  self.openedChannels.get(ch):
-                chHandler = self.openedChannels.get(ch)[1]
-                chHandler.write(ch,setCob)
-                n=max(int(Tout/0.001),1)
-                while n:
-                    id, msg, dlc, flg, time,returns = chHandler.read(timeout=Tout)
-
-                    if  returns == canlib.canOK and id == getCob:
-                        return bytearray(msg)
-
-                    n-=1
-
-        except canError as ce:
-            logging.error(ce)
-        else:
-           return msg
+    def closekvaser(self,ch=0):
+        if ch in [ ch[0]  for ch in self.kv] :
+            channel = self.openedChannels.get(ch)
+            channel[1].busOff()
+            channel[1].close()
+            self.openedChannels.remove(ch)
 
 
 
 
 
-class CanOpen(Kvaser):
+class CanOpen():
     def __init__(self,**kw):
         Kvaser.__init__(self)
 
@@ -192,7 +238,15 @@ class CanOpen(Kvaser):
         except:
             return 'Unknow SDO abort code'
 
+
+
     def getSdo( self, ch,NodeId , Index , SubIndex , TypeIn , Timeout = 1 , AbortMsg = None , decode = True ): 
+        '''Initiate SDO Upload protocol
+        Client request (8 bytes):
+        0: 7-5 bits - ccs=2 - initiate upload request(client command specifier)
+           4-0 bit - not used ,always 0
+        1-4: m- multiplexor.It represents the index/sub-index of the data to be transfer by the SDO
+        4-8: data'''
         # function [Value,AbortFlag,CobId,Data] = GetSdo( h , NodeId , Index , SubIndex , Type , Timeout )
         # Purpose: Get SDO 
         #
