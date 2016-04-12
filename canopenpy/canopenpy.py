@@ -102,134 +102,150 @@ class SimpleList:
          return None
 
 
+class Can:
+    '''This  factory class  forces the creation of can objects to occur through the coommon factory'''
+    class Kvaser(canlib.canlib):
+        ''''''
+        def __init__(self,):
+            canlib.canlib.__init__(self)
+            # how many channels are set
+            self.channels = self.getNumberOfChannels()
+            #create data structure of list of tuples 
+            self.kv = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
+            # save opened channels in data structure 
+            self.openedChannels = SimpleList()
+            # baud rates dictionary
+            self.BaudTable = {1000000:canlib.canBITRATE_1M,500000:canlib.canBITRATE_500K,
+                              250000:canlib.canBITRATE_250K,125000:canlib.canBITRATE_125K,
+                              100000:canlib.canBITRATE_100K}
+            #current channel 
+            self.currentChannel = -1
+
+        def open(self,channel,bitrate):
+                    # if channel is active open channel (kvaser)
+                    try:
+                        if channel in [ ch[0]  for ch in self.kv] :
+                            # Don't allow sharing of this circuit between applications
+                            self.ch = self.openChannel(channel, canlib.canOPEN_ACCEPT_VIRTUAL)#canlib.canOPEN_EXCLUSIVE)
+                            print ("Using channel: %s, EAN: %s" % 
+                                   (self.ch.getChannelData_Name(), self.ch.getChannelData_EAN()))
+
+                            self.ch.setBusOutputControl(canlib.canDRIVER_NORMAL)
+                            baud = self.BaudTable[bitrate]
+                            self.ch.setBusParams(baud)
+                            self.ch.busOn()
+                            self.openedChannels.add(channel,self.ch)
+                    except canError as ce:
+                        logging.error(ce)
+                    except KeyError as ke:
+                        logging.error(ke)
 
 
-class Kvaser(canlib.canlib):
-    ''''''
-    def __init__(self,):
-        canlib.canlib.__init__(self)
-        # how many channels are set
-        self.channels = self.getNumberOfChannels()
-        #create data structure of list of tuples 
-        self.kv = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
-        # save opened channels in data structure 
-        self.openedChannels = SimpleList()
-        # baud rates dictionary
-        self.BaudTable = {1000000:canlib.canBITRATE_1M,500000:canlib.canBITRATE_500K,
-                          250000:canlib.canBITRATE_250K,125000:canlib.canBITRATE_125K,
-                          100000:canlib.canBITRATE_100K}
-        #current channel 
-        self.currentChannel = -1
-
-    def openkvaser(self,channel,bitrate):
-                # if channel is active open channel (kvaser)
-                try:
-                    if channel in [ ch[0]  for ch in self.kv] :
-                        # Don't allow sharing of this circuit between applications
-                        self.ch = self.openChannel(channel, canlib.canOPEN_ACCEPT_VIRTUAL)#canlib.canOPEN_EXCLUSIVE)
-                        print ("Using channel: %s, EAN: %s" % 
-                               (self.ch.getChannelData_Name(), self.ch.getChannelData_EAN()))
-
-                        self.ch.setBusOutputControl(canlib.canDRIVER_NORMAL)
-                        baud = self.BaudTable[bitrate]
-                        self.ch.setBusParams(baud)
-                        self.ch.busOn()
-                        self.openedChannels.add(channel,self.ch)
-                except canError as ce:
-                    logging.error(ce)
-                except KeyError as ke:
-                    logging.error(ke)
+        def close(self,ch=0):
+            if ch in [ ch[0]  for ch in self.kv] :
+                channel = self.openedChannels.get(ch)
+                channel[1].busOff()
+                channel[1].close()
+                self.openedChannels.remove(ch)
 
 
-    def closekvaser(self,ch=0):
-        if ch in [ ch[0]  for ch in self.kv] :
-            channel = self.openedChannels.get(ch)
-            channel[1].busOff()
-            channel[1].close()
-            self.openedChannels.remove(ch)
-
-
-    #def setCurrentChannel( self,ch ):
-        '''if two or more channels had been opened then set one of those for read/write 
-        caution : this procedure is thread unsafe'''
+        #def setCurrentChannel( self,ch ):
+            '''if two or more channels had been opened then set one of those for read/write 
+            caution : this procedure is thread unsafe'''
         
 
-    #def ping(self,ch,setCob=None,getCob=None,msg='',Tout = 0.2):
-    #    '''
-    #    [ch] - type integer - number of channel
-    #    [setCob] - type int - communication Id (
+        #def ping(self,ch,setCob=None,getCob=None,msg='',Tout = 0.2):
+        #    '''
+        #    [ch] - type integer - number of channel
+        #    [setCob] - type int - communication Id (
 
-    #    [msg] - type str - msg to send '''
-    #    #chHandler1 = self.openedChannels.get(1)[1]
+        #    [msg] - type str - msg to send '''
+        #    #chHandler1 = self.openedChannels.get(1)[1]
 
-    #    try:
-    #        if  self.openedChannels.get(ch):
-    #            chHandler = self.openedChannels.get(ch)[1]
-    #            chHandler.write(ch,msg)
-    #            n=max(int(Tout/0.001),1)
-    #            while n:
-    #                id, msg, dlc, flg, time,returns = chHandler.read(timeout=Tout)
+        #    try:
+        #        if  self.openedChannels.get(ch):
+        #            chHandler = self.openedChannels.get(ch)[1]
+        #            chHandler.write(ch,msg)
+        #            n=max(int(Tout/0.001),1)
+        #            while n:
+        #                id, msg, dlc, flg, time,returns = chHandler.read(timeout=Tout)
 
-    #                if  returns == canlib.canOK and id == getCob:
-    #                    return bytearray(msg)
+        #                if  returns == canlib.canOK and id == getCob:
+        #                    return bytearray(msg)
 
-    #                n-=1
+        #                n-=1
 
-    #    except canError as ce:
-    #        logging.error(ce)
-    #    else:
-    #       return msg
+        #    except canError as ce:
+        #        logging.error(ce)
+        #    else:
+        #       return msg
 
-class NI_8473(ni8473a.canlib):
-     def __init__(self,):
-        canlib.canlib.__init__(self)
-        # how many channels are set
-        self.channels = self.getNumberOfChannels()
-        #create data structure of list of tuples 
-        self.kv = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
-        # save opened channels in data structure 
-        self.openedChannels = SimpleList()
-        # baud rates dictionary
-        self.BaudTable = {1000000:ni8473a.NC_BAUD_1000K ,500000:ni8473a.NC_BAUD_500K,
-                          250000:ni8473a.NC_BAUD_250K,125000:ni8473a.NC_BAUD_125K,
-                          100000:ni8473a.NC_BAUD_100K}
-        #current channel 
-        self.currentChannel = -1
+    class NI_8473(ni8473a.canlib):
+        def __init__(self,):
+            ni8473a.canlib.__init__(self)
+            # how many channels are set
+            self.channels = self.getNumberOfChannels()
+            #create data structure of list of tuples 
+            self.kv = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
+            # save opened channels in data structure 
+            self.openedChannels = SimpleList()
+            # baud rates dictionary
+            self.BaudTable = {1000000:ni8473a.NC_BAUD_1000K ,500000:ni8473a.NC_BAUD_500K,
+                                250000:ni8473a.NC_BAUD_250K,125000:ni8473a.NC_BAUD_125K,
+                                100000:ni8473a.NC_BAUD_100K}
+            #current channel 
+            self.currentChannel = -1
 
-    def openkvaser(self,channel,bitrate):
-                # if channel is active open channel (kvaser)
-                try:
-                    if channel in [ ch[0]  for ch in self.kv] :
-                        # Don't allow sharing of this circuit between applications
-                        self.ch = self.openChannel(channel, canlib.canOPEN_ACCEPT_VIRTUAL)#canlib.canOPEN_EXCLUSIVE)
-                        print ("Using channel: %s, EAN: %s" % 
-                               (self.ch.getChannelData_Name(), self.ch.getChannelData_EAN()))
-
-                        self.ch.setBusOutputControl(canlib.canDRIVER_NORMAL)
-                        baud = self.BaudTable[bitrate]
-                        self.ch.setBusParams(baud)
-                        self.ch.busOn()
-                        self.openedChannels.add(channel,self.ch)
-                except canError as ce:
-                    logging.error(ce)
-                except KeyError as ke:
-                    logging.error(ke)
-
-
-    def closekvaser(self,ch=0):
-        if ch in [ ch[0]  for ch in self.kv] :
-            channel = self.openedChannels.get(ch)
-            channel[1].busOff()
-            channel[1].close()
-            self.openedChannels.remove(ch)
+        def open(self,channel,bitrate):
+                    # if channel is active open channel (ni)
+                    try:
+                        if channel in [ ch[0]  for ch in self.kv] :
+                            # Don't allow sharing of this circuit between applications
+                            self.ch = self.openChannel(channel)#canlib.canOPEN_EXCLUSIVE)
+                            print ("Using channel: %s, EAN: %s" % 
+                                   (self.ch.getChannelData_Name(), self.ch.getChannelData_EAN()))   
+                            #call always before config
+                            self.ch.setBaud(baud = self.BaudTable[bitrate])
+                            self.ch.config()   
+                            self.ch.open()
+                            self.ch.action()
+                            self.openedChannels.add(channel,self.ch)
+                    except ni8473a.canError as ce:
+                        logging.error(ce)
+                    except KeyError as ke:
+                        logging.error(ke)
 
 
 
 
+        def close(self,ch=0):
+            if ch in [ ch[0]  for ch in self.kv] :
+                channel = self.openedChannels.get(ch)
+                channel[1].close()
+                self.openedChannels.remove(ch)
 
+
+    def factory(type):
+        #return eval(type + "()")
+        try:
+            type = type.lower()
+            if type == "kvaser": return Kvaser()
+            if type == "ni__8473": return NI_8473()
+        except Exception as ex:
+            logging.error(ex)
+
+            assert 0, "Unknown driver name : " + type
+       
+
+
+#TODO : IN init procedure pass as argument string name of driver( Name of type of NI_8473 or Kvaser)
+# Use factory class to choose appropriate class 
+# Agregate this factory to CanOpen class
 class CanOpen():
-    def __init__(self,**kw):
-        Kvaser.__init__(self)
+    def __init__(self,canDriverName="kvaser"):
+        """"""
+        self.can = Can.factory(canDriverName)
+
 
 
     def AnalyzeSdoAbort( self, errcode): 
@@ -238,6 +254,18 @@ class CanOpen():
         except:
             return 'Unknow SDO abort code'
 
+    def read_can_frame(self):
+        """
+        Low-level function: Read a CAN frame from socket.
+        """
+        if self.sock:
+            can_frame = CANFrame()
+            if libc.read(self.sock, byref(can_frame), c_int(16)) != 16:
+                raise Exception("CAN frame read error")
+            return can_frame
+        else:
+            raise Exception("CAN fram read error: socket not connected")
+            
 
 
     def getSdo( self, ch,NodeId , Index , SubIndex , TypeIn , Timeout = 1 , AbortMsg = None , decode = True ): 

@@ -408,11 +408,16 @@ class canlib(object):
         res = res_type()
         self.dll.ncGetHardwareInfo( cardNumber,portNumber,AttrId, AttrSize,byref(res))       
         return res[0]
-    
+########## not tested - maybe buggy~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     def getNumberOfCannels(self):
       return self.getHardwareInfo(AttrId= NC_ATTR_NUM_PORTS)
 
+    def getChannelData_Name(self,ch):
+        return  self.getHardwareInfo(AttrId = NC_ATTR_TRANSCEIVER_TYPE|NC_ATTR_INTERFACE_NUM|NC_ATTR_HW_SERIES)
 
+    def getChannelData_EAN(self,ch):
+        return self. getHardwareInfo()
+##################################################################################################################
     def openChannel(self, channel):
         self.fn = inspect.stack()[0][3]
         ObjName = 'CAN%s'%channel
@@ -423,7 +428,7 @@ class canChannel(object):
     def __init__(self, canlib, ObjName):
         self.canlib    = canlib
         self.dll       = canlib.dll
-       # self.index     = channel
+        #self.index     = channel
         self.canlib.fn = 'openChannel'
         self.aCanObjHandle = pointer(c_ulong(0))
         self.objName = ObjName
