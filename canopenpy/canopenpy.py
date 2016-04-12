@@ -150,8 +150,8 @@ class Can:
 
 
         #def setCurrentChannel( self,ch ):
-            '''if two or more channels had been opened then set one of those for read/write 
-            caution : this procedure is thread unsafe'''
+            #'''if two or more channels had been opened then set one of those for read/write 
+            #caution : this procedure is thread unsafe'''
         
 
         #def ping(self,ch,setCob=None,getCob=None,msg='',Tout = 0.2):
@@ -230,7 +230,9 @@ class Can:
         try:
             type = type.lower()
             if type == "kvaser": return Kvaser()
-            if type == "ni__8473": return NI_8473()
+            if type == "ni__8473"|\
+               type == "8473"|\
+               type == "ni": return NI_8473()
         except Exception as ex:
             logging.error(ex)
 
@@ -253,19 +255,69 @@ class CanOpen():
             return SdoAbortCode[ errcode ] ;
         except:
             return 'Unknow SDO abort code'
+    
+
+    def pingCanMessage(self,canid,msg):
+        try:
+            self.can.ch.write(canid,msg)
+            wait  = int(self.timeout/0.001)
+            while True :
+                 id.value, msgList[:dlc.value], dlc.value, flag.value, time.value
+            retval = self.h.read(self.timeout)
+            
+            return retval  
+                  
+        except (self.can.canError) as ex:
+           # print ( ex )
+           raise ex
 
     def read_can_frame(self):
         """
-        Low-level function: Read a CAN frame from socket.
-        """
-        if self.sock:
-            can_frame = CANFrame()
-            if libc.read(self.sock, byref(can_frame), c_int(16)) != 16:
-                raise Exception("CAN frame read error")
+        Low-level function: Read a CAN frame .
+        """ 
+        if self.can != None:       
+            try:   
+                can_frame = self.can.ch.read()
+            except:raise Exception("CAN frame read error")
             return can_frame
         else:
-            raise Exception("CAN fram read error: socket not connected")
+            raise Exception("CAN frame read error: can not connected")
             
+    def setNodeId(self,nodeId):
+            self.nodeId = nodeId
+
+    def getNodeId(self):
+        return self.nodeId
+
+    def parse_can_frame(self, can_frame):
+        """
+        Low level function: Parse a given CAN frame into CANopen frame
+        """
+        canopen_frame = CANopenFrame()        
+        if libcanopen.canopen_frame_parse(byref(canopen_frame), byref(can_frame)) == 0:
+            return canopen_frame
+        else:
+            raise Exception("CANopen Frame parse error")
+                        
+
+
+   
+    #---------------------------------------------------------------------------
+    # SDO related functions
+    #
+
+    #
+    # EXPEDIATED
+    #
+
+    def SDOUploadExp(self, node, index, subindex):
+        """
+            Expediated SDO upload
+        """
+        msg =  (64).to_bytes(1,'little')+(index).to_bytes(2,'little')+(subindex).to_bytes(5,'little')         
+        self.can.write(node,msg)
+
+
 
 
     def getSdo( self, ch,NodeId , Index , SubIndex , TypeIn , Timeout = 1 , AbortMsg = None , decode = True ): 
@@ -273,8 +325,8 @@ class CanOpen():
         Client request (8 bytes):
         0: 7-5 bits - ccs=2 - initiate upload request(client command specifier)
            4-0 bit - not used ,always 0
-        1-4: m- multiplexor.It represents the index/sub-index of the data to be transfer by the SDO
-        4-8: data'''
+        1-3: m- multiplexor.It represents the index/sub-index of the data to be transfer by the SDO
+        4-7: data'''
         # function [Value,AbortFlag,CobId,Data] = GetSdo( h , NodeId , Index , SubIndex , Type , Timeout )
         # Purpose: Get SDO 
         #
