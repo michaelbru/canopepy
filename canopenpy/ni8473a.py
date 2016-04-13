@@ -563,7 +563,7 @@ class canChannel(object):
         data = [ d for d in canStruct.Data]
         # with extended Id(29bit instead 11bit) you should use mask NC_FL_CAN_ARBID_XTD(0x20000000) to get real id
         # example: canStruct.ArbitrationId&~0x20000000
-        return canStruct.ArbitrationId,canStruct.DataLength,data[:canStruct.DataLength]     
+        return canStruct.ArbitrationId,data[:canStruct.DataLength],canStruct.DataLength
    
 
     def waitForState(self,canState):

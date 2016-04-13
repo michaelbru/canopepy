@@ -3,7 +3,8 @@ import ni8473a
 import struct
 import queue
 import logging
-from canlib import canError
+import time
+#from canlib import canError
 #CAN communication variable types 
 TypeLength = {'integer8': (1,True,'b') , 'integer16':  (2,True,'<h') , 'integer32':  (4,True,'<l') , 
               'unsigned8' :  (1,False,'B') , 'unsigned16': (2,False,'<H') , 'unsigned32': (4,False,'<L') ,'vis string': (-1,False,'B')} 
@@ -247,7 +248,11 @@ class CanOpen():
     def __init__(self,canDriverName="kvaser"):
         """"""
         self.can = Can.factory(canDriverName)
+        self.timeout = 0.002
 
+
+    def open(self,ch=0,baud=1000000):
+        self.can.open(ch,baud)
 
 
     def AnalyzeSdoAbort( self, errcode): 
@@ -257,15 +262,17 @@ class CanOpen():
             return 'Unknow SDO abort code'
     
 
-    def pingCanMessage(self,canid,msg):
+    def pingCanMessage(self,nodeIdSend,nodeIdReply,msg):
         try:
-            self.can.ch.write(canid,msg)
+            self.can.ch.write(nodeIdSend,msg)
             wait  = int(self.timeout/0.001)
-            while True :
-                 id.value, msgList[:dlc.value], dlc.value, flag.value, time.value
-            retval = self.h.read(self.timeout)
-            
-            return retval  
+            tmpNodeId = -1
+            while tmpNodeId!=nodeIdReply and wait:              
+                ret = self.can.ch.read(self.timeout)
+                tmpNodeId = ret[0] 
+                time.sleep(0.001)
+                wait-=1                        
+            return bytearray(ret[1])
                   
         except (self.can.canError) as ex:
            # print ( ex )
@@ -308,14 +315,15 @@ class CanOpen():
 
     #
     # EXPEDIATED
-    #
+    #---------------------------------------------------------------------------
 
-    def SDOUploadExp(self, node, index, subindex):
+    def SDOUploadExp(self, nodeId, index, subindex):
         """
             Expediated SDO upload
         """
-        msg =  (64).to_bytes(1,'little')+(index).to_bytes(2,'little')+(subindex).to_bytes(5,'little')         
-        self.can.write(node,msg)
+        msg =  (64).to_bytes(1,'little')+(index).to_bytes(2,'little')+(subindex).to_bytes(5,'little') 
+                
+        ret = self.pingCanMessage( nodeId + 0x600 ,  nodeId + 0x580 ,msg , tout = 0.02) 
 
 
 
