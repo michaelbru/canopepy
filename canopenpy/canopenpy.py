@@ -70,8 +70,61 @@ SdoAbortCode = {
 0x08000023: 
    'Object dictionary dynamic generation fails or no object dictionary is\npresent (e.g. object dictionary is generated from file and generation fails\nbecause of an file error)',
 } 
+#
+# This struct describes and SDO object (8-byte payload data in an CANopen frame)
+# command specifier
 
- 
+CANOPEN_SDO_CS_MASK    = 0xE0
+CANOPEN_SDO_CS_RX_IDD   =0x20
+CANOPEN_SDO_CS_TX_IDD   =0x60
+CANOPEN_SDO_CS_IDD_STR = "Initiate Domain Download"
+CANOPEN_SDO_CS_RX_DDS  = 0x00
+CANOPEN_SDO_CS_TX_DDS  = 0x20
+CANOPEN_SDO_CS_DDS_STR = "Download Domain Segment"
+CANOPEN_SDO_CS_RX_IDU  = 0x40
+CANOPEN_SDO_CS_TX_IDU  = 0x40
+CANOPEN_SDO_CS_IDU_STR = "Initiate Domain Upload"
+CANOPEN_SDO_CS_RX_UDS  = 0x60
+CANOPEN_SDO_CS_TX_UDS  = 0x00
+CANOPEN_SDO_CS_UDS_STR = "Upload Domain Segment"
+CANOPEN_SDO_CS_RX_ADT  = 0x80
+CANOPEN_SDO_CS_TX_ADT  = 0x80
+CANOPEN_SDO_CS_ADT_STR = "Abort Domain Transfer"
+CANOPEN_SDO_CS_RX_BD   = 0xC0
+CANOPEN_SDO_CS_TX_BD  =  0xA0
+CANOPEN_SDO_CS_BD_STR = "Block Download"
+
+
+
+
+# initiate download flags
+CANOPEN_SDO_CS_ID_N_MASK  =  0x0C    
+CANOPEN_SDO_CS_ID_N_SHIFT =  0x02
+CANOPEN_SDO_CS_ID_E_FLAG  =  0x02
+CANOPEN_SDO_CS_ID_S_FLAG  =  0x01
+
+# domain segment flags
+CANOPEN_SDO_CS_DS_N_MASK   = 0x0E
+CANOPEN_SDO_CS_DS_N_SHIFT  = 0x01
+CANOPEN_SDO_CS_DS_C_FLAG   = 0x01
+CANOPEN_SDO_CS_DS_T_FLAG   = 0x10
+
+# block download flags
+CANOPEN_SDO_CS_BD_S_FLAG  = 0x02
+CANOPEN_SDO_CS_BD_CRC_FLAG =0x04
+CANOPEN_SDO_CS_BD_C_FLAG  = 0x80
+
+CANOPEN_SDO_CS_DB_CS_IBD  = 0x00
+CANOPEN_SDO_CS_DB_CS_EBD  = 0x01
+
+CANOPEN_SDO_CS_DB_N_MASK  =  0x07
+CANOPEN_SDO_CS_DB_N_SHIFT =  0x02
+
+CANOPEN_SDO_CS_DB_SS_IBD_ACK =0x00
+CANOPEN_SDO_CS_DB_SS_BD_ACK  =0x02
+CANOPEN_SDO_CS_DB_SS_BD_END  =0x01
+CANOPEN_SDO_CS_DB_SS_MASK    =0x03
+
 
 class SimpleList:
     ''' simple list is    
@@ -136,6 +189,7 @@ class Can:
                             self.ch.setBusParams(baud)
                             self.ch.busOn()
                             self.openedChannels.add(channel,self.ch)
+                            self.setCurrentChannel(channel)
                     except canError as ce:
                         logging.error(ce)
                     except KeyError as ke:
@@ -149,11 +203,11 @@ class Can:
                 channel[1].close()
                 self.openedChannels.remove(ch)
 
-
-        #def setCurrentChannel( self,ch ):
-            #'''if two or more channels had been opened then set one of those for read/write 
-            #caution : this procedure is thread unsafe'''
         
+        def setCurrentChannel( self,ch ):
+            '''if two or more channels had been opened then set one of those for read/write 
+            caution : this procedure is thread unsafe'''
+            self.currentChannel=ch
 
         #def ping(self,ch,setCob=None,getCob=None,msg='',Tout = 0.2):
         #    '''
@@ -211,11 +265,12 @@ class Can:
                             self.ch.open()
                             self.ch.action()
                             self.openedChannels.add(channel,self.ch)
+                            self.setCurrentChannel(channel)
                     except ni8473a.canError as ce:
                         logging.error(ce)
                     except KeyError as ke:
                         logging.error(ke)
-
+    
 
 
 
@@ -225,6 +280,10 @@ class Can:
                 channel[1].close()
                 self.openedChannels.remove(ch)
 
+        def setCurrentChannel( self,ch ):
+            '''if two or more channels had been opened then set one of those for read/write 
+            caution : this procedure is thread unsafe'''
+            self.currentChannel=ch
 
     def factory(type):
         #return eval(type + "()")
@@ -250,11 +309,6 @@ class CanOpen():
         self.can = Can.factory(canDriverName)
         self.timeout = 0.002
 
-
-    def open(self,ch=0,baud=1000000):
-        self.can.open(ch,baud)
-
-
     def AnalyzeSdoAbort( self, errcode): 
         try:
             return SdoAbortCode[ errcode ] ;
@@ -262,14 +316,20 @@ class CanOpen():
             return 'Unknow SDO abort code'
     
 
+    def open(self,ch=0,baud=1000000):
+        self.can.open(ch,baud)
+
+    def close(self,ch=0):
+        self.can.close(ch)
+
     def pingCanMessage(self,nodeIdSend,nodeIdReply,msg):
         try:
             self.can.ch.write(nodeIdSend,msg)
-            wait  = int(self.timeout/0.001)
-            tmpNodeId = -1
-            while tmpNodeId!=nodeIdReply and wait:              
+            wait  = int(self.timeout/0.001)          
+            while   wait:              
                 ret = self.can.ch.read(self.timeout)
-                tmpNodeId = ret[0] 
+                if ret[0] == nodeIdReply: 
+                    break
                 time.sleep(0.001)
                 wait-=1                        
             return bytearray(ret[1])
@@ -296,15 +356,15 @@ class CanOpen():
     def getNodeId(self):
         return self.nodeId
 
-    def parse_can_frame(self, can_frame):
-        """
-        Low level function: Parse a given CAN frame into CANopen frame
-        """
-        canopen_frame = CANopenFrame()        
-        if libcanopen.canopen_frame_parse(byref(canopen_frame), byref(can_frame)) == 0:
-            return canopen_frame
-        else:
-            raise Exception("CANopen Frame parse error")
+    #def parse_can_frame(self, can_frame):
+    #    """
+    #    Low level function: Parse a given CAN frame into CANopen frame
+    #    """
+    #    canopen_frame = CANopenFrame()        
+    #    if libcanopen.canopen_frame_parse(byref(canopen_frame), byref(can_frame)) == 0:
+    #        return canopen_frame
+    #    else:
+    #        raise Exception("CANopen Frame parse error")
                         
 
 
@@ -319,12 +379,86 @@ class CanOpen():
 
     def SDOUploadExp(self, nodeId, index, subindex):
         """
-            Expediated SDO upload
+            Expediated SDO upload (read)
+       
+            The Initiate SDO Upload – Request
+            =================================
+            bit 7..5 - ccs: Client Command Specifier = 2 ( bin(64)='0b1000000' )
+            bit 4..0 - x: reserved
+
+            The Multiplexor contains the Index and Subindex of the OD entry that the
+            client wants to read  
+
+
+            The Initiate SDO Upload - Response
+            ==================================
+            This is the response sent back from the SDO server to the client 
+            indicating that the previously received upload (read) request can be processed.
+            If expedited transfer is used, the data read from the Object Dictionary 
+            is part of the response, otherwise additional segmented transfers are used. 
+            The default CAN identifier used for this message is 580h plus 
+            the Node ID of the node implementing the SDO server
+            
+            bit 7..5 - scs: Server Command Specifier = 2
+            bit 4    - x: reserved
+            bit 3..2 - n: if e=s=1, number of data bytes in Byte 4..7 that do not contain data
+            bit 1    - e: set to 1 for expedited transfer (data is in bytes 4-7)
+            bit 0    - s: set to 1 if data size is indicated
         """
         msg =  (64).to_bytes(1,'little')+(index).to_bytes(2,'little')+(subindex).to_bytes(5,'little') 
-                
+        #Sends SDO requests to each node by using message ID:600h + Node ID  
+        #Expects reply in message ID: 580h + Node ID      
         ret = self.pingCanMessage( nodeId + 0x600 ,  nodeId + 0x580 ,msg , tout = 0.02) 
+        #todo: verify returned message
+        if msgRet[0] & 0x80 : 
+            AbortCode =  struct.unpack_from('L',msgRet,4)[0]  # Return error code + abort 
+            assert not( type(AbortMsg) is str), AbortMsg+ ': GetSdo Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) 
+            return AbortCode,1 # Return error code + abort 
+        if (((msgRet[0] & 0xe0 ) >> 5 ) != 2) or ( msgRet[1:4] != msg[1:4] ) : #Bad CCS, multiplexor does not fit 
+            logging.error ('Bad response to SDO upload init') 
+        if msgRet[0] & 2 : #expedited upload 
+            n = 4 - (( msgRet[0] >> 2 ) & 3 ) if ( msgRet[0] & 2 ) else 4 #get number of expedited bytes
+            assert ( n >= TypeLength[Type][0] ) ,'No enough bytes in the return message for the desired data type' 
+            if Type == 'vis string' :
+                return msgRet[4:4+n].decode('ascii') ,0 
+            return  struct.unpack_from(TypeLength[Type][2],msgRet,4)[0],0 #Return result, no abort 
+        return ret
+    
 
+   
+
+    def SDODownloadExp(self, node, index, subindex, data, size):
+        """
+        Expediated SDO download
+        """
+
+
+
+    def SDOUploadSeg(self, node, index, subindex, size):
+        """
+        Segmented SDO upload
+        """
+
+
+
+    def SDODownloadSeg(self, node, index, subindex, str_data, size):
+        """
+        Segmented SDO download
+        """
+
+
+
+    def SDOUploadBlock(self, node, index, subindex, size):
+        """
+        Block SDO upload.
+        """
+
+
+
+    def SDODownloadBlock(self, node, index, subindex, str_data, size):
+        """
+        Block SDO download.
+        """
 
 
 
