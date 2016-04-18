@@ -10,6 +10,28 @@ TypeLength = {'integer8': (1,True,'b') , 'integer16':  (2,True,'<h') , 'integer3
               'unsigned8' :  (1,False,'B') , 'unsigned16': (2,False,'<H') , 'unsigned32': (4,False,'<L') ,'vis string': (-1,False,'B')} 
 MapOpt = {'rx':{0x1400,0x1600,0x100},'tx':{0x1800,0x1a00,0x80}} 
 
+
+
+#CAN ID - message identifier
+#From  TO  Communication Objects   Comment
+canId={'NMT Service':(0x0,'From NMT Master'),
+       'SYNC Message':(0x80,'From SYNC Producer'),
+       'Emergency Message':(0x81,0xFF,'From nodes 1 to 127'),
+       'Time Stamp Message':(0x100,'From timestamp producer'),
+       '1st Transmit PDO':(0x181,0x1FF,'From nodes 1 to 127'),
+       '1st Receive PDO':(0x201,0x27F,'For nodes 1 to 127'),
+       '2nd Transmit PDO':(0x281,0x2FF,'From nodes 1 to 127'),
+       '2nd Receive PDO':(0x301,0x37F,'For nodes 1 to 127'),
+       '3rd Transmit PDO':(0x381,0x3FF,'From nodes 1 to 127'),
+       '3rd Receive PDO':(0x401,0x47F,'For nodes 1 to 127'),
+       '4th Transmit PDO':(0x481,0x4FF,'From nodes 1 to 127'),
+       '4th Receive PDO':(0x501,0x57F,'For nodes 1 to 127'),
+       'Transmit SDO':(0x581,0x5FF,'From nodes 1 to 127'),
+       'Receive SDO':(0x601,0x67F,'For nodes 1 to 127'),
+       'NMT Error Control':(0x701,0x77F,'From nodes 1 to 127')}
+
+
+
 SdoAbortCode = { 
 0x05030000:
    'Toggle bit not alternated.',
@@ -165,7 +187,7 @@ class Can:
             # how many channels are set
             self.channels = self.getNumberOfChannels()
             #create data structure of list of tuples 
-            self.kv = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
+            self.channels = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
             # save opened channels in data structure 
             self.openedChannels = SimpleList()
             # baud rates dictionary
@@ -178,7 +200,7 @@ class Can:
         def open(self,channel,bitrate):
                     # if channel is active open channel (kvaser)
                     try:
-                        if channel in [ ch[0]  for ch in self.kv] :
+                        if channel in [ ch[0]  for ch in self.channels] :
                             # Don't allow sharing of this circuit between applications
                             self.ch = self.openChannel(channel, canlib.canOPEN_ACCEPT_VIRTUAL)#canlib.canOPEN_EXCLUSIVE)
                             print ("Using channel: %s, EAN: %s" % 
@@ -197,7 +219,7 @@ class Can:
 
 
         def close(self,ch=0):
-            if ch in [ ch[0]  for ch in self.kv] :
+            if ch in [ ch[0]  for ch in self.channels] :
                 channel = self.openedChannels.get(ch)
                 channel[1].busOff()
                 channel[1].close()
@@ -209,31 +231,6 @@ class Can:
             caution : this procedure is thread unsafe'''
             self.currentChannel=ch
 
-        #def ping(self,ch,setCob=None,getCob=None,msg='',Tout = 0.2):
-        #    '''
-        #    [ch] - type integer - number of channel
-        #    [setCob] - type int - communication Id (
-
-        #    [msg] - type str - msg to send '''
-        #    #chHandler1 = self.openedChannels.get(1)[1]
-
-        #    try:
-        #        if  self.openedChannels.get(ch):
-        #            chHandler = self.openedChannels.get(ch)[1]
-        #            chHandler.write(ch,msg)
-        #            n=max(int(Tout/0.001),1)
-        #            while n:
-        #                id, msg, dlc, flg, time,returns = chHandler.read(timeout=Tout)
-
-        #                if  returns == canlib.canOK and id == getCob:
-        #                    return bytearray(msg)
-
-        #                n-=1
-
-        #    except canError as ce:
-        #        logging.error(ce)
-        #    else:
-        #       return msg
 
     class NI_8473(ni8473a.canlib):
         def __init__(self,):
@@ -241,7 +238,7 @@ class Can:
             # how many channels are set
             self.channels = self.getNumberOfChannels()
             #create data structure of list of tuples 
-            self.kv = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
+            self.channels = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
             # save opened channels in data structure 
             self.openedChannels = SimpleList()
             # baud rates dictionary
@@ -254,7 +251,7 @@ class Can:
         def open(self,channel,bitrate):
                     # if channel is active open channel (ni)
                     try:
-                        if channel in [ ch[0]  for ch in self.kv] :
+                        if channel in [ ch[0]  for ch in self.channels] :
                             # Don't allow sharing of this circuit between applications
                             self.ch = self.openChannel(channel)#canlib.canOPEN_EXCLUSIVE)
                             print ("Using channel: %s, EAN: %s" % 
@@ -275,7 +272,7 @@ class Can:
 
 
         def close(self,ch=0):
-            if ch in [ ch[0]  for ch in self.kv] :
+            if ch in [ ch[0]  for ch in self.channels] :
                 channel = self.openedChannels.get(ch)
                 channel[1].close()
                 self.openedChannels.remove(ch)
@@ -356,32 +353,19 @@ class CanOpen():
     def getNodeId(self):
         return self.nodeId
 
-    #def parse_can_frame(self, can_frame):
-    #    """
-    #    Low level function: Parse a given CAN frame into CANopen frame
-    #    """
-    #    canopen_frame = CANopenFrame()        
-    #    if libcanopen.canopen_frame_parse(byref(canopen_frame), byref(can_frame)) == 0:
-    #        return canopen_frame
-    #    else:
-    #        raise Exception("CANopen Frame parse error")
-                        
-
-
+  
    
     #---------------------------------------------------------------------------
     # SDO related functions
     #
 
     #
-    # EXPEDIATED
+    # 
     #---------------------------------------------------------------------------
 
-    def SDOUploadExp(self, nodeId, index, subindex):
+    def SDOUpload(self, index, subindex,TypeIn):
         """
-            Expediated SDO upload (read)
-       
-            The Initiate SDO Upload – Request
+            The Initiate SDO Upload ? Request
             =================================
             bit 7..5 - ccs: Client Command Specifier = 2 ( bin(64)='0b1000000' )
             bit 4..0 - x: reserved
@@ -405,46 +389,119 @@ class CanOpen():
             bit 1    - e: set to 1 for expedited transfer (data is in bytes 4-7)
             bit 0    - s: set to 1 if data size is indicated
         """
+        Type = TypeIn.lower()
+        #SDO request message
         msg =  (64).to_bytes(1,'little')+(index).to_bytes(2,'little')+(subindex).to_bytes(5,'little') 
         #Sends SDO requests to each node by using message ID:600h + Node ID  
         #Expects reply in message ID: 580h + Node ID      
-        ret = self.pingCanMessage( nodeId + 0x600 ,  nodeId + 0x580 ,msg , tout = 0.02) 
-        #todo: verify returned message
-        if msgRet[0] & 0x80 : 
+        msgRet = self.pingCanMessage( nodeId + 0x600 ,  nodeId + 0x580 ,msg , tout = 0.02) 
+
+        # verify returned message~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        #Test abort message
+        if msgRet[0] & CANOPEN_SDO_CS_RX_ADT : 
             AbortCode =  struct.unpack_from('L',msgRet,4)[0]  # Return error code + abort 
-            assert not( type(AbortMsg) is str), AbortMsg+ ': GetSdo Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) 
-            return AbortCode,1 # Return error code + abort 
-        if (((msgRet[0] & 0xe0 ) >> 5 ) != 2) or ( msgRet[1:4] != msg[1:4] ) : #Bad CCS, multiplexor does not fit 
+            logging.error ( 'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
+            for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )
+            #assert 0,  'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) 
+            raise Exception(  'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
+            for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )
+
+        #Test command specifier and multiplexor
+        if (((msgRet[0] & CANOPEN_SDO_CS_MASK ) >> 5 ) != 2) or ( msgRet[1:4] != msg[1:4] ) : 
             logging.error ('Bad response to SDO upload init') 
-        if msgRet[0] & 2 : #expedited upload 
+            raise Exception('Bad response to SDO upload init')
+
+
+        #Test  expedited upload
+        if msgRet[0] & 2 : 
+            # calculate number of data bytes
             n = 4 - (( msgRet[0] >> 2 ) & 3 ) if ( msgRet[0] & 2 ) else 4 #get number of expedited bytes
-            assert ( n >= TypeLength[Type][0] ) ,'No enough bytes in the return message for the desired data type' 
+            if  n <= TypeLength[Type][0]:
+                logging.error('No enough bytes in the return message for the desired data type' )
+                raise Exception('No enough bytes in the return message for the desired data type')
+           
+
             if Type == 'vis string' :
-                return msgRet[4:4+n].decode('ascii') ,0 
-            return  struct.unpack_from(TypeLength[Type][2],msgRet,4)[0],0 #Return result, no abort 
-        return ret
-    
+                return msgRet[4:4+n].decode('ascii')  
+            return  struct.unpack_from(TypeLength[Type][2],msgRet,4)[0] #Return result, no abort 
 
-   
 
-    def SDODownloadExp(self, node, index, subindex, data, size):
+        #Segmented~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        '''If in the initiation sequence a segmented transfer was negotiated, 
+        this message is used to request that the next segment (of up to 7 bytes)
+        be transmitted from SDO server to client.
+
+        The Upload SDO Segment – Request
+        ================================
+            bit 7..5  - scs: Server Command Specifier = 3 ( bin(0x60)='0b1100000' )
+            bit 4     - t: toggle bit – set to 0 in first segment request, 
+                              toggled with each subsequent request
+            bit 0..3  - x: reserved
+
+        The Upload SDO Segment – Response
+        =================================
+         bit 7..5 - scs:Server Command Specifier = 0
+         bit 4    - t: toggle bit – set to 0 in first segment, 
+                     toggled with each subsequent response 
+         bit 3..1 -    n: number of data bytes in Byte 1..7 that do not contain data
+         bit 0    - c: set to 1 if this is the last segment/fragment
+        
+            
+        '''
+        # assign buffer for data
+        buf =  (0).to_bytes(8,'little')  
+        # assing Upload SDO Segment Request msg 
+        msg =  (0x60).to_bytes(8,'little')
+        # number of data bytes to recieve
+        nDelivery = struct.unpack_from('L',msgRet,4)[0] if ( msgRet[0] & 1 ) else -1
+        while True:
+            msgRet = self.pingCanMessage( nodeId + 0x600 ,  nodeId + 0x580 ,msg , tout = 0.02) 
+            # toggle bit
+            msg = (msg[0] ^ 0x10).to_bytes(1,'little') + msg[1:]
+            # verify returned message~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            #Test abort message
+            if msgRet[0] & 0x80 : 
+                AbortCode =  struct.unpack_from('L',msgRet,4)[0] # Return error code + abort 
+                logging.error ( 'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
+                for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )                
+                raise Exception(  'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
+                for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )
+
+
+            #Test command specifier 
+            if (msgRet[0] & 0xe0 ) != 0:
+                logging.error ('Bad response to SDO upload init') 
+                raise Exception('Bad response to SDO upload init')
+
+           # number of data bytes in Byte 1..7 that do not contain data
+            n = 7 - (( msgRet[0] >> 1 ) & 7 )
+            # add 7-n bytes to buf
+            buf = buf + msgRet[1:n+1]
+            # is all data sent?
+            if ( len( buf ) >= nDelivery + 8 ) or msgRet[0] & 1 : # Complete or already message length exceeded
+                break
+        # 0<=nDelivery
+        nDelivery = len(buf)-8 if nDelivery < 0 else nDelivery
+        if nDelivery !=  len(buf)-8 or nDelivery <= TypeLength[Type][0]:
+            raise Exception('Length of SDO upload not as expected')
+       
+        if Type == 'vis string' :#and decode:
+            return buf[8:].decode('ascii') 
+        else:
+            return buf[8:] 
+        return  struct.unpack_from(TypeLength[Type][2],buf,8)[0]
+
+
+        logging.error ('Unknown error') 
+        raise Exception('Unknown error')
+
+
+
+    def SDODownload(self, node, index, subindex, data, size):
         """
         Expediated SDO download
         """
 
-
-
-    def SDOUploadSeg(self, node, index, subindex, size):
-        """
-        Segmented SDO upload
-        """
-
-
-
-    def SDODownloadSeg(self, node, index, subindex, str_data, size):
-        """
-        Segmented SDO download
-        """
 
 
 
@@ -506,7 +563,8 @@ class CanOpen():
             assert not( type(AbortMsg) is str), AbortMsg+ ': GetSdo Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) 
             return AbortCode,1 # Return error code + abort 
         if (((msgRet[0] & 0xe0 ) >> 5 ) != 2) or ( msgRet[1:4] != msg[1:4] ) : #Bad CCS, multiplexor does not fit 
-            logging.error ('Bad response to SDO upload init') 
+            logging.error ('Bad response to SDO upload init')
+            
         if msgRet[0] & 2 : #expedited upload 
             n = 4 - (( msgRet[0] >> 2 ) & 3 ) if ( msgRet[0] & 2 ) else 4 #get number of expedited bytes
             assert ( n >= TypeLength[Type][0] ) ,'No enough bytes in the return message for the desired data type' 
