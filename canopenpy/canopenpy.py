@@ -1,4 +1,4 @@
-import canlib
+﻿import canlib
 import ni8473a
 import struct
 import queue
@@ -363,9 +363,9 @@ class CanOpen():
     # 
     #---------------------------------------------------------------------------
 
-    def SDOUpload(self, index, subindex,TypeIn):
+    def SDOUpload(self, index, subindex,TypeIn,AbortMsg = None):
         """
-            The Initiate SDO Upload ? Request
+            The Initiate SDO Upload - Request
             =================================
             bit 7..5 - ccs: Client Command Specifier = 2 ( bin(64)='0b1000000' )
             bit 4..0 - x: reserved
@@ -390,6 +390,10 @@ class CanOpen():
             bit 0    - s: set to 1 if data size is indicated
         """
         Type = TypeIn.lower()
+        if  Type not in TypeLength.keys():
+            logging.error('SDO desired for ilegal type, found['+repr(Type)+'] , permitted: ' + repr(TypeLength.keys()) )
+            raise Exception('SDO desired for ilegal type, found['+repr(Type)+'] , permitted: ' + repr(TypeLength.keys()))
+      
         #SDO request message
         msg =  (64).to_bytes(1,'little')+(index).to_bytes(2,'little')+(subindex).to_bytes(5,'little') 
         #Sends SDO requests to each node by using message ID:600h + Node ID  
@@ -402,7 +406,6 @@ class CanOpen():
             AbortCode =  struct.unpack_from('L',msgRet,4)[0]  # Return error code + abort 
             logging.error ( 'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
             for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )
-            #assert 0,  'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) 
             raise Exception(  'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
             for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )
 
@@ -431,17 +434,17 @@ class CanOpen():
         this message is used to request that the next segment (of up to 7 bytes)
         be transmitted from SDO server to client.
 
-        The Upload SDO Segment � Request
+        The Upload SDO Segment  Request
         ================================
-            bit 7..5  - scs: Server Command Specifier = 3 ( bin(0x60)='0b1100000' )
-            bit 4     - t: toggle bit � set to 0 in first segment request, 
+            bit 7..5  - ccs: Client Command Specifier = 3 ( bin(0x60)='0b1100000' )
+            bit 4     - t: toggle bit  set to 0 in first segment request, 
                               toggled with each subsequent request
             bit 0..3  - x: reserved
 
-        The Upload SDO Segment � Response
+        The Upload SDO Segment  Response
         =================================
          bit 7..5 - scs:Server Command Specifier = 0
-         bit 4    - t: toggle bit � set to 0 in first segment, 
+         bit 4    - t: toggle bit  set to 0 in first segment, 
                      toggled with each subsequent response 
          bit 3..1 -    n: number of data bytes in Byte 1..7 that do not contain data
          bit 0    - c: set to 1 if this is the last segment/fragment
@@ -460,7 +463,7 @@ class CanOpen():
             msg = (msg[0] ^ 0x10).to_bytes(1,'little') + msg[1:]
             # verify returned message~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             #Test abort message
-            if msgRet[0] & 0x80 : 
+            if msgRet[0] & CANOPEN_SDO_CS_RX_ADT : 
                 AbortCode =  struct.unpack_from('L',msgRet,4)[0] # Return error code + abort 
                 logging.error ( 'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
                 for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )                
@@ -469,7 +472,7 @@ class CanOpen():
 
 
             #Test command specifier 
-            if (msgRet[0] & 0xe0 ) != 0:
+            if (msgRet[0] & CANOPEN_SDO_CS_MASK ) != 0:
                 logging.error ('Bad response to SDO upload init') 
                 raise Exception('Bad response to SDO upload init')
 
@@ -497,128 +500,97 @@ class CanOpen():
 
 
 
-    def SDODownload(self, node, index, subindex, data, size):
-        """
-        Expediated SDO download
+    def SDODownload(self, node, index, subindex, data , Type,AbortMsg = None ):
         """
 
 
 
+        The Initiate SDO Download – Request
+        ===================================
+        The client (typically the node trying to configure a CANopen slave)
+        sends this request to a SDO server (implemented within a CANopen slave)
+        by using the CAN identifier 600h plus the Node ID of the CANopen slave addressed.
+        The download request is a request to write to a specific Object Dictionary entry.
 
-    def SDOUploadBlock(self, node, index, subindex, size):
+        bit 7..5 - ccs: Client Command Specifier = 1
+        bit 4    - x: reserved
+        bit 3..2 - n: if e=s=1, number of data bytes in Byte 4..7 that do not contain data
+        bit 1    - e: set to 1 for expedited transfer (data is in bytes 4-7)
+        bit 0    - s: set to 1 if data size is indicated
+        
+        The Initiate SDO Download – Response
+        ====================================      
+        This is the response sent back from the SDO server to the client indicating that the
+        previously received download (write) request was processed successfully. 
+        The default CAN identifier used for this message is 580h plus the Node ID
+        of the node implementing the SDO server.
+
+        bit 7..5 - scs: Server Command Specifier = 3
+        bit 4..0 - x: reserved
         """
-        Block SDO upload.
-        """
-
-
-
-    def SDODownloadBlock(self, node, index, subindex, str_data, size):
-        """
-        Block SDO download.
-        """
-
-
-
-    def getSdo( self, ch,NodeId , Index , SubIndex , TypeIn , Timeout = 1 , AbortMsg = None , decode = True ): 
-        '''Initiate SDO Upload protocol
-        Client request (8 bytes):
-        0: 7-5 bits - ccs=2 - initiate upload request(client command specifier)
-           4-0 bit - not used ,always 0
-        1-3: m- multiplexor.It represents the index/sub-index of the data to be transfer by the SDO
-        4-7: data'''
-        # function [Value,AbortFlag,CobId,Data] = GetSdo( h , NodeId , Index , SubIndex , Type , Timeout )
-        # Purpose: Get SDO 
-        #
-        # Arguments: 
-        # 
-        # NodeId: Node ID
-        # Index: Object index
-        # SubIndex: Object sub index 
-        # Type: Received data type, may be:		
-        #                          'integer8'
-        #                          'integer16'
-        #                          'integer32'
-        #                          'unsigned8'
-        #                          'unsigned16'
-        #                          'unsigned32'
-        #                          'vis string'
-        # Timeout: timeout [sec]
-        # AbortMsg: Set to string if a faiure should abort with this string displayed
-        #
-        # Returns: 
-        # Value: Array with received data, or abort code
-        # AbortFlag: if 1 then abort code recieved, normaly 0
-        # CobId: Received additional communication objects identifiers
-        # Data : Received additional data
-
-        #NodeId = self.GetNodeId(h , NodeId) 
-        #ch = self.ComPars.handles[h]['ChannelNum']
-        Type = TypeIn.lower()
-        assert Type in TypeLength.keys() ,'SDO desired for ilegal type, found['+repr(Type)+'] , permitted: ' + repr(TypeLength.keys()) 
-        msg =  (64).to_bytes(1,'little')+(Index).to_bytes(2,'little')+(SubIndex).to_bytes(5,'little') # SDO upload init 
-        #self.ComPars.handles[h]['CAN_InPool'].clean('cobId',[ NodeId + 0x600 ,  NodeId + 0x580]) # Clear any old junk refering that COB ID 
-        msgRet = self.ping( ch , NodeId + 0x600 ,  NodeId + 0x580 ,msg , Tout = Timeout) 
-        if msgRet[0] & 0x80 : 
-            AbortCode =  struct.unpack_from('L',msgRet,4)[0]  # Return error code + abort 
-            assert not( type(AbortMsg) is str), AbortMsg+ ': GetSdo Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) 
-            return AbortCode,1 # Return error code + abort 
-        if (((msgRet[0] & 0xe0 ) >> 5 ) != 2) or ( msgRet[1:4] != msg[1:4] ) : #Bad CCS, multiplexor does not fit 
-            logging.error ('Bad response to SDO upload init')
-            
-        if msgRet[0] & 2 : #expedited upload 
-            n = 4 - (( msgRet[0] >> 2 ) & 3 ) if ( msgRet[0] & 2 ) else 4 #get number of expedited bytes
-            assert ( n >= TypeLength[Type][0] ) ,'No enough bytes in the return message for the desired data type' 
-            if Type == 'vis string' :
-                return msgRet[4:4+n].decode('ascii') ,0 
-            return  struct.unpack_from(TypeLength[Type][2],msgRet,4)[0],0 #Return result, no abort 
-        #Segmented
-        buf =  (0).to_bytes(8,'little') # Stam 
-        msg =  (0x60).to_bytes(8,'little')
-        nDelivery = struct.unpack_from('L',msgRet,4)[0] if ( msgRet[0] & 1 ) else -1
-        while True:
-            msgRet = self.ping( ch , NodeId + 0x600 ,  NodeId + 0x580 ,msg , Tout = Timeout ) 
-            msg = (msg[0] ^ 0x10).to_bytes(1,'little') + msg[1:]
-            if msgRet[0] & 0x80 : 
-                AbortCode =  struct.unpack_from('L',msgRet,4)[0] # Return error code + abort 
-                assert not ( type(AbortMsg) is str), AbortMsg+ ': GetSdo Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) 
-                return AbortCode,1 # Return error code + abort 
-            assert (msgRet[0] & 0xe0 ) == 0 , 'Bad response to SDO upload init' # scs error 
-            n = 7 - (( msgRet[0] >> 1 ) & 7 )
-            buf = buf + msgRet[1:n+1]
-            if ( len( buf ) >= nDelivery + 8 ) or msgRet[0] & 1 : # Complete or already message length exceeded
-                break
-
-        nDelivery = len(buf)-8 if nDelivery < 0 else nDelivery
-        assert nDelivery ==  len(buf)-8 and nDelivery >= TypeLength[Type][0],'Length of SDO upload not as expected'
-        if Type == 'vis string' and decode:
-            return buf[8:].decode('ascii') ,0 
-        else:
-            return buf[8:] ,0 
-        return  struct.unpack_from(TypeLength[Type][2],buf,8)[0],0 #Return result, no abort 
-
-
-
-    
-    def setSdo( self ,ch, NodeId , Index , SubIndex  , data , Type , Timeout = 1 , AbortMsg = None ): 
-       
+        # test type message  
         Type = Type.lower()
-        assert Type in TypeLength.keys() ,'SDO desired for ilegal type, found['+repr(Type)+'] , prmitted: ' + repr(TypeLength.keys()) 
+        if  Type not in TypeLength.keys():
+            logging.error('SDO desired for ilegal type, found['+repr(Type)+'] , permitted: ' + repr(TypeLength.keys()) )
+            raise Exception('SDO desired for ilegal type, found['+repr(Type)+'] , permitted: ' + repr(TypeLength.keys()))
+        
+        #test data on 'vis string' and create message
         if Type == 'vis string': 
-            assert type(data) is str ,'Required visible string for non string data'
-            msg =  ((1<<5)+1).to_bytes(1,'little')+(Index).to_bytes(2,'little')+(SubIndex).to_bytes(1,'little')+(len(data)).to_bytes(4,'little') # SDO dnload init 
-            #print('SetSDO msg:' + str(msg))
+            if not type(data)  is str:
+                logging.error('Required visible string for non string data' )
+                raise Exception('Required visible string for non string data')
+           # The Initiate SDO Download with indicated data size 
+            msg =  ((1<<5)+1).to_bytes(1,'little')+(Index).to_bytes(2,'little')+\
+                (SubIndex).to_bytes(1,'little')+(len(data)).to_bytes(4,'little') # SDO dnload init 
+           
         else:
-            msg =  ((1<<5)+((4-TypeLength[Type][0])<<2)+(1<<1)+1).to_bytes(1,'little')+(Index).to_bytes(2,'little')+(SubIndex).to_bytes(1,'little')+data.to_bytes(4,'little') # SDO dnload init 
+            msg =  ((1<<5)+((4-TypeLength[Type][0])<<2)+(1<<1)+1).to_bytes(1,'little')+(Index).to_bytes(2,'little')+\
+                (SubIndex).to_bytes(1,'little')+data.to_bytes(4,'little') # SDO dnload init 
+
+        #Sends SDO requests to each node by using message ID:600h + Node ID  
+        #Expects reply in message ID: 580h + Node ID     
+        msgRet = self.pingCanMessage( nodeId + 0x600 ,  nodeId + 0x580 ,msg , tout = 0.02) 
+         
+        # verify returned message~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        #Test abort message
+        if msgRet[0] & CANOPEN_SDO_CS_RX_ADT : 
+                AbortCode =  struct.unpack_from('L',msgRet,4)[0] # Return error code + abort 
+                logging.error ( 'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
+                for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )                
+                raise Exception(  'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
+                for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )
+        
+        #Test command specifier and multiplexor
+        if (((msgRet[0] & CANOPEN_SDO_CS_MASK ) >> 5 ) != 3) or ( msgRet[1:4] != msg[1:4] ) : 
+            raise Exception('Bad response to SDO download init') 
+
+
+        '''The Download SDO Segment – Request
+           ==================================
+        If in the initiation sequence a segmented transfer was negotiated, 
+        this message is used to transmit the next segment (of up to 7 bytes)
+        from client to SDO server.
+
+        bit 7..5 - ccs: Client Command Specifier = 0
+        bit 4    - t: toggle bit – set to 0 in first segment, toggled with each subsequent request
+        bit 3..1 - n: number of data bytes in Byte 1..7 that do not contain data
+        bit 0    - c: set to 1 if this is the last segment/fragment
        
-        msgRet = self.ping( ch , NodeId + 0x600 ,  NodeId + 0x580 ,msg , Tout = Timeout) 
-        #print('SetSDO msgRet:' + str(msgRet))
-        if msgRet[0] & 0x80 :   
-            AbortCode =  struct.unpack_from('L',msgRet,4)[0]  # Return error code + abort 
-            assert not (type(AbortMsg) is str), AbortMsg+ ': SetSdo Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) 
-            return AbortCode,1 # Return error code + abort 
-        if (((msgRet[0] & 0xe0 ) >> 5 ) != 3) or ( msgRet[1:4] != msg[1:4] ) : #Bad CCS, multiplexor does not fit 
-            error ('Bad response to SDO download init') 
-        #Segmented
+        
+        
+         The Download SDO Segment – Response 
+         ====================================
+         This is the response sent back from the SDO server to the client 
+         indicating that the previously received download (write) segment 
+         request was processed successfully
+
+        bit 7..5 - scs: Server Command Specifier = 1
+        bit 4    - t: toggle bit – set to 0 in first segment, toggled with each subsequent request
+        bit 3..0 - x: reserved
+       
+       
+           '''
+         #Segmented
         t = 1 ; 
         while len(data) :
             t = 1-t 
@@ -632,20 +604,54 @@ class CanOpen():
                 meser  = data + chr(0) * (7-nNext) 
                 Complete = 1 
                 data = [] 
-
+            
             msg =  ((t<<4)+((7-nNext)<<1)+Complete).to_bytes(1,'little')+ meser.encode('ascii')
-            msgRet = self.ping( ch , NodeId + 0x600 ,  NodeId + 0x580 ,msg , Tout = Timeout ) 
-            if msgRet[0] & 0x80 : 
-                AbortCode =  struct.unpack_from('L',msgRet,4)[0]  # Return error code + abort 
-                assert not ( type(AbortMsg) is str), AbortMsg+ ': SetSdo Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) 
-                return AbortCode,1 # Return error code + abort 
+            #Sends SDO requests to each node by using message ID:600h + Node ID  
+            #Expects reply in message ID: 580h + Node ID     
+            msgRet = self.pingCanMessage( nodeId + 0x600 ,  nodeId + 0x580 ,msg , tout = 0.02) 
+                
+            # verify returned message~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            #Test abort message
+            if msgRet[0] & CANOPEN_SDO_CS_RX_ADT : 
+                    AbortCode =  struct.unpack_from('L',msgRet,4)[0] # Return error code + abort 
+                    logging.error ( 'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
+                    for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )                
+                    raise Exception(  'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
+                    for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )
+        
 
         return 0 
 
 
+
+
+    def SDOUploadBlock(self, node, index, subindex, size):
+        """
+        Block SDO upload.
+        """
+
+
+
+    def SDODownloadBlock(self, node, index, subindex, str_data, size):
+        """
+        Initiate Block Download
+        =======================
+        To initiate a block download the client sends the request to the server 
+        to which the server sends a response.
+
+        Message contents of the request
+        bit 7..5 - ccs: Client Command Specifier = 6
+        bit 4..3 - x: Reserved
+        bit 2    - cc: Client CRC support, set to 1 if client supports CRC
+        bit 1    - s: Size indicator, set if size of data to transmit is indicated
+        bit 0    - cs: Client subcommand = 0
+        byte 1-3 - The Multiplexor contains the Index and Subindex of the OD entry that the
+                   client wants to write to
+        byte 4-7 -size: Contains the size of the data block in bytes, if s is set
+        """
     
 
-    def SetPdoMapping( self ,h, NodeId , PdoNum , FlagRxTxIn , TransType , IndexArr , SubIndexArr , LenArr , PdoCobId =None ):
+    def SetPdoMapping( self , NodeId , PdoNum , FlagRxTxIn , TransType , IndexArr , SubIndexArr , LenArr , PdoCobId =None ):
 # function SetPdoMapping( h , NodeId , PdoNum , FlagRxTx , TransType , IndexArr , SubIndexArr , LenArr )
 #
 # Purpose: Map the specified PDO 
@@ -667,18 +673,18 @@ class CanOpen():
         pdoMap = MapOpt[FlagRxTx][1]
         cobId = PdoNum*256 + MapOpt[FlagRxTx][2]
 #For changing the PDO mapping the previous PDO must be deleted, the sub-index 0 must be set to 0. 	
-        self.SetSdo( h , NodeId , pdoMap, 0 , 0 , 'unsigned8' , AbortMsg = 'Cannot delete previous mapping') ;
+        self.SDODownload( NodeId , pdoMap, 0 , 0 , 'unsigned8' , AbortMsg = 'Cannot delete previous mapping') ;
 
         if PdoCobId != None : 
-            Value,AbortFlag= self.GetSdo( h , NodeId , pdoPar, 1 , 'unsigned32' ) ;
+            Value,AbortFlag= self.SDOUpload(  NodeId , pdoPar, 1 , 'unsigned32' ) ;
             if AbortFlag: 
                 error( 'Cannot program PDO parameters' )
                 pdoCobId = PdoCobId | (3<<30) # No RTR allowed
-                self.SetSdo( h , NodeId , pdoPar , 1 , pdoCobId , 'unsigned32' ,'Cannot set transmission type') 
+                self.SDODownload( h , NodeId , pdoPar , 1 , pdoCobId , 'unsigned32' ,'Cannot set transmission type') 
 
 # Send SDO download to set transmission type.
 # Transmission type resides at the sub-index 2h of the PDO Communication Parameter record.				
-        self.SetSdo( h , NodeId , pdoPar , 2 , TransType , 'unsigned8' ,'Cannot set transmission type') ;
+        self.SDODownload( h , NodeId , pdoPar , 2 , TransType , 'unsigned8' ,'Cannot set transmission type') ;
 
 # Mapping loop for all PDO objects to be mapped
         for subIndex in range(len(IndexArr)):
@@ -689,7 +695,7 @@ class CanOpen():
         # 8 next bits is sub-index
         # 8 least significant bits is length of object	
             data = IndexArr(subIndex)*65536 + SubIndexArr(subIndex)*256 + LenArr(subIndex) ;
-            AbortFlag = self.SetSdo( h , NodeId , pdoMap , subIndex , data , 'unsigned32' ) ;
+            AbortFlag = self.SDODownload( h , NodeId , pdoMap , subIndex , data , 'unsigned32' ) ;
             if AbortFlag:
                 err = self.AnalyzeSdoAbort( AbortFlag ) ;
                 error( 'Cannot set mapping: '+err) 
@@ -697,13 +703,13 @@ class CanOpen():
 # Send SDO download to set number of entries of the PDO mapped objects 
 # Subindex 0 is number of mapped objects in PDO
 # For changing the PDO mapping the previous PDO must be deleted, the sub-index 0 must be set to 0. 	
-        AbortFlag = self.SetSdo( h , NodeId , pdoMap, 0 , length(IndexArr) , 'unsigned8' ) 
+        AbortFlag = self.SDODownload( h , NodeId , pdoMap, 0 , length(IndexArr) , 'unsigned8' ) 
         if AbortFlag:
             err = self.AnalyzeSdoAbort( AbortFlag ) ;
             error( 'Cannot delete previous mapping: {0}'+err) 
 
 
-        AbortFlag = self.GetSdo( h , NodeId , pdoMap, 0 , 'unsigned8' ) 
+        AbortFlag = self.SDOUpload( h , NodeId , pdoMap, 0 , 'unsigned8' ) 
         if AbortFlag:
             err = self.AnalyzeSdoAbort( AbortFlag ) ;
             error('Cannot delete previous mapping: '+err ) ;
@@ -717,7 +723,7 @@ class CanOpen():
     def GetBH( self, h , NodeId = None , BitNumber = 0 , unsign = 0  ) :
 # function Arr = GetBH( h , NodeId , BitNumber , usign ) 
 
-        Value,AbortFlag = self.GetSdo( h , NodeId , 8240 , BitNumber , 'vis string' , 3 , decode = False); # 8240 = 0x2030
+        Value,AbortFlag = self.SDOUpload( h , NodeId , 8240 , BitNumber , 'vis string' , 3 , decode = False); # 8240 = 0x2030
         
         Value0 = struct.unpack_from('<B',Value)[0] 
         recorderTsMultiplier = Value0 & 0xf 
@@ -752,7 +758,7 @@ class CanOpen():
     def GetRU( self, h , NodeId = None , BitNumber = 0 , unsign = 0 , bDmdRec = 0 ) :
 # function Arr = GetBH( h , NodeId , BitNumber , usign ) 
 
-        Value,AbortFlag = self.GetSdo( h , NodeId , 8277 if bDmdRec else 8240 , BitNumber , 'vis string' , 3 , decode = False); # 8240 = 0x2030
+        Value,AbortFlag = self.SDOUpload( h , NodeId , 8277 if bDmdRec else 8240 , BitNumber , 'vis string' , 3 , decode = False); # 8240 = 0x2030
         
         dataType = struct.unpack_from('<B',Value)[0] # 0 = short , 1 = long , 2 = float , 3 = double , 4 = __int64
         dataLength = struct.unpack_from('<H',Value,1)[0]
@@ -800,7 +806,7 @@ class CanOpen():
     # Returns: 
     # str: Received string
     # Set object 0x1024 (OS mode) to execute immediate      
-        self.SetSdo( h , NodeId , 4131 , 1 , str , 'vis string' , Timeout , 'OS interpreter send cmd'); # 4131 = 0x1023
+        self.SDODownload( h , NodeId , 4131 , 1 , str , 'vis string' , Timeout , 'OS interpreter send cmd'); # 4131 = 0x1023
 
     #Wait till target is ready 
     #Result = 0 for completed, no reply 
@@ -809,11 +815,11 @@ class CanOpen():
     #3 error , reply there 
         Value = 255 ;
         while Value == 255 : 
-           Value,AbortFlag = self.GetSdo( h , NodeId , 4131 , 2 , 'unsigned8' , Timeout ,'OS interpreter wait ready ');# 4131 = 0x1023
+           Value,AbortFlag = self.SDOUpload( h , NodeId , 4131 , 2 , 'unsigned8' , Timeout ,'OS interpreter wait ready ');# 4131 = 0x1023
 
         assert Value & 1 , 'Os interpreter failed' 
 
-        Value,ErrCode = self.GetSdo( h , NodeId , 4131 , 3 , 'vis string' , Timeout ,'OS interpreter get result ');# 4131 = 0x1023
+        Value,ErrCode = self.SDOUpload( h , NodeId , 4131 , 3 , 'vis string' , Timeout ,'OS interpreter get result ');# 4131 = 0x1023
         return Value.replace(chr(0),'') 
         #return ''.join(([chr(i) for i in Value if i]))
 

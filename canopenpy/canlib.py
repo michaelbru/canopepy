@@ -288,12 +288,17 @@ class canlib(object):
     #------------------------------------------------------------------#
 
     def getVersion(self):
+        """ This API call returns the version of the CANLIB API DLL 
+        (canlib32.dll). The most significant byte is the major version
+        number and the least significant byte is the minor version number """
         self.fn = inspect.stack()[0][3]
         v = self.dll.canGetVersion()
         version = canVersion(v & 0xff, v >> 8)
         return version
 
     def getNumberOfChannels(self):
+        """This function returns the number of available CAN channels 
+        in the computer. The virtual channels are included in this number."""
         self.fn = inspect.stack()[0][3]
         chanCount = c_int()
         self.dll.canGetNumberOfChannels(chanCount)
@@ -313,6 +318,13 @@ class canlib(object):
         return "%s (channel %d)" % (name.value, buf[0])
 
     def getChannelData_CardNumber(self, channel):
+        '''This function receives the channel number on the card.
+        Parameters: 
+        channel - 
+         The number of the channel you are interested in. 
+        Channel numbers are integers in the interval beginning at 0 (zero) 
+        and ending at the value returned by canGetNumberOfChannels() minus 1.  
+        return channel name ( for example: Kvaser Leaf Light HS)'''
         self.fn = inspect.stack()[0][3]
         buf_type = c_uint
         buf = buf_type()
@@ -377,6 +389,17 @@ class canlib(object):
         return (major, minor, build)
 
     def openChannel(self, channel, flags=0):
+        '''Opens a CAN channel (circuit) and returns a handle which is used in subsequent calls to CANLIB.
+        Channel numbering is dependent on the installed hardware. The first channel always has number 0.
+        For example,
+        If you have a single LAPcan, the channels are numbered 0 and 1. 
+        If you have a USBcan Professional, the channels are numbered 0-1 according to the labels on the cables. 
+        The virtual channels come after all physical channels
+        Parameters:
+        channel - The number of the channel. Channel numbering is hardware dependent
+        flags  - A combination of canOPEN_xxx flags(for more information about flags for this function see canlib.h ) 
+        
+        Returns object of type canChannel of  opened circuit, or canERR_xxx (negative) if the call failed'''
         self.fn = inspect.stack()[0][3]
         return canChannel(self, channel, flags)
 
@@ -398,16 +421,39 @@ class canChannel(object):
         self.handle    = self.dll.canOpenChannel(channel, flags)
 
     def close(self):
+        '''This function closes the channel associated with the handle.
+        If no other threads are using the CAN circuit, it is taken off bus.
+        The handle can not be used for further references to the channel,
+        so any variable containing it should be zeroed'''
         self.canlib.fn = inspect.stack()[0][3]
         self.dll.canClose(self.handle)
         self.handle = -1
 
     def setBusParams(self, freq, tseg1=0, tseg2=0, sjw=0, noSamp=0, syncmode=0):
+        '''This function sets the bus timing parameters for the specified CAN controller
+            Parameters: 
+        freq - Bit rate (measured in bits per second); or one of the predefined constants canBITRATE_xxx, which are described below.  
+        tseg1 - Time segment 1, that is, the number of quanta from (but not including) the Sync Segment to the sampling point.  
+        tseg2 - Time segment 2, that is, the number of quanta from the sampling point to the end of the bit.  
+        sjw - The Synchronization Jump Width; can be 1,2,3, or 4.  
+        noSamp - The number of sampling points; can be 1 or 3.  
+        syncmode - Unsupported and ignored. 
+        '''
         self.canlib.fn = inspect.stack()[0][3]
         self.dll.canSetBusParams(self.handle, freq, tseg1, tseg2, sjw,
                                  noSamp, syncmode)
 
     def getBusParams(self):
+        ''' This function retrieves the current bus parameters for the specified channel
+        Parameters:
+[in] hnd An open handle to a CAN controller.  
+[out] freq Bit rate (bits per second).  
+[out] tseg1 Time segment 1, that is, the number of quanta from (but not including) the Sync Segment to the sampling point.  
+[out] tseg2 Time segment 2, that is, the number of quanta from the sampling point to the end of the bit.  
+[out] sjw The Synchronization Jump Width; can be 1,2,3, or 4.  
+[out] noSamp The number of sampling points; can be 1 or 3.  
+[out] syncmode Unsupported, always read as zero. 
+'''
         self.canlib.fn = inspect.stack()[0][3]
         freq = c_long()
         tseg1 = c_uint()
@@ -420,20 +466,44 @@ class canChannel(object):
                                  byref(syncmode))
         return freq.value, tseg1.value, tseg2.value, sjw.value, noSamp.value, syncmode.value
 
-    def busOn(self):
+    def busOn(self): 
+        ''' This function takes the specified channel on-bus
+        If you are using multiple handles to the same physical channel,
+        for example if you are writing a threaded application, 
+        you must call canBusOn() once for each handle. 
+        The same applies to canBusOff() - the physical channel will not go off
+        bus until the last handle to the channel goes off bus.'''
         self.canlib.fn = inspect.stack()[0][3]
         self.dll.canBusOn(self.handle)
 
     def busOff(self):
+        
         self.canlib.fn = inspect.stack()[0][3]
         self.dll.canBusOff(self.handle)
 
     def write(self, id, msg, flag=0):
+        '''This function sends a CAN message. The call returns immediately 
+        after queuing the message to the driver.
+        If you are using the same channel via multiple handles, 
+        note that the default behaviour is that the different handles will
+        "hear" each other just as if each handle referred to a channel of its own.
+        If you open, say, channel 0 from thread A and thread B and then send
+        a message from thread A, it will be "received" by thread B.
+        This behaviour can be changed using canIOCTL_SET_LOCAL_TXECHO.
+        '''
         self.canlib.fn = inspect.stack()[0][3]
         data = (c_ubyte * len(msg))(*msg)
         self.dll.canWrite(self.handle, id, byref(data), len(msg), flag)
 
     def writeWait(self, id, msg, flag=0, timeout=0):
+        '''This function sends a CAN message. It returns when the message is sent, or the timeout expires
+        If you are using the same channel via multiple handles, 
+        note that the default behaviour is that the different handles
+        will "hear" each other just as if each handle referred to a channel of its own.
+        If you open, say, channel 0 from thread A and thread B and then send a message
+        from thread A, it will be "received" by thread B. This behaviour can be 
+        changed using canIOCTL_SET_LOCAL_TXECHO.
+        '''
         self.canlib.fn = inspect.stack()[0][3]
         data = (c_ubyte * len(msg))(*msg)
         self.dll.canWriteWait(self.handle, id, byref(data), len(msg), flag, timeout)
@@ -485,6 +555,19 @@ canERR_xxx (negative) if failure
         return struct.unpack('!Q', buf)[0]
 
     def readSpecificSkip(self, id, timeout=0):
+        '''Reads a message with a specified identifier from the receive buffer.
+        Any preceding message not matching the specified identifier will be 
+        removed in the receive buffer. If no message with the specified 
+        identifier is available, the function returns immediately with an error code.
+        Parameters:
+       
+        [out] id The desired CAN identifier.  
+        [out] dlc Pointer to a buffer which receives the message length.  
+        [out] flag Pointer to a buffer which receives the message flags,
+        which is a combination of the canMSG_xxx and canMSGERR_xxx values.  
+        [out] time Pointer to a buffer which receives the message time stamp. 
+
+        '''
         self.canlib.fn = inspect.stack()[0][3]
         msg = self.canlib.canMessage()
         id = c_long(id)
@@ -497,6 +580,10 @@ canERR_xxx (negative) if failure
         return id.value, msgList[:dlc.value], dlc.value, flag.value, time.value
 
     def readSyncSpecific(self, id, timeout=0):
+        '''Reads a message with a specified identifier from the receive buffer.
+        Any preceding message not matching the specified identifier will be kept
+        in the receive buffer. If no message with the specified identifier is available,
+        the function returns immediately with an error code.'''
         self.canlib.fn = inspect.stack()[0][3]
         id = c_long(id)
         self.dll.canReadSyncSpecific(self.handle, id, timeout)
@@ -507,38 +594,65 @@ canERR_xxx (negative) if failure
                                    c_int(eventNo), c_uint(data))
 
     def setBusOutputControl(self, drivertype=canDRIVER_NORMAL):
+        '''This function sets the driver type for a CAN controller.
+        This corresponds loosely to the bus output control register
+        in the CAN controller, hence the name of this function. 
+        CANLIB does not allow for direct manipulation of the bus 
+        output control register; instead, symbolic constants 
+        are used to select the desired driver type.
+        '''
         self.canlib.fn = inspect.stack()[0][3]
         self.dll.canSetBusOutputControl(self.handle, drivertype)
 
     def ioCtl_flush_rx_buffer(self):
+        '''
+        This API call performs several different functions;
+        these are described below. The functions are handle-specific 
+        unless otherwise noted; this means that they affect only the
+        handle you pass to canIoCtl(), whereas other open handles will 
+        remain unaffected. The contents of buf after the call is dependent
+        on the function code you specified.
+        '''
         self.canlib.fn = inspect.stack()[0][3]
         self.dll.canIoCtl(self.handle, canIOCTL_FLUSH_RX_BUFFER, None, 0)
 
     def getChannelData_Name(self):
+        '''This function returns  the product name of the
+        device as a zero-terminated ASCII string'''
         self.canlib.fn = inspect.stack()[0][3]
         return self.canlib.getChannelData_Name(self.index)
 
     def getChannelData_CardNumber(self):
+        '''This function returns the serial number of the card'''
         self.canlib.fn = inspect.stack()[0][3]
         return self.canlib.getChannelData_CardNumber(self.index)
 
     def getChannelData_EAN(self):
+        '''This function receives the UPC-Universal Product Code (EAN)'''
         self.canlib.fn = inspect.stack()[0][3]
         return self.canlib.getChannelData_EAN(self.index)
 
     def getChannelData_EAN_short(self):
+        '''This function receives the UPC-Universal Product Code (EAN) 
+        and returns  LSB'''
         self.canlib.fn = inspect.stack()[0][3]
         return self.canlib.getChannelData_EAN_short(self.index)
 
     def getChannelData_Serial(self):
+        '''This function receives the serial number of the card
+        retunt serial low number (see getChannelData_Serial in canlib) '''
         self.canlib.fn = inspect.stack()[0][3]
         return self.canlib.getChannelData_Serial(self.index)
 
     def getChannelData_DriverName(self):
+        '''This function  receives the name of the device driver (e.g. "kcans")  
+        return driver name value'''
         self.canlib.fn = inspect.stack()[0][3]
         return self.canlib.getChannelData_DriverName(self.index)
 
     def getChannelData_Firmware(self):
+        '''function  receives the firmware revision number on the card
+        return tuple(major minor build)'''
         self.canlib.fn = inspect.stack()[0][3]
         return self.canlib.getChannelData_Firmware(self.index)
 

@@ -25,7 +25,6 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="canlib___.py" />
     <Compile Include="canlib.py" />
     <Compile Include="canopenpy.py" />
     <Compile Include="ni8473a.py" />
