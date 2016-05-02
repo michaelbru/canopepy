@@ -27,7 +27,34 @@
   <ItemGroup>
     <Compile Include="canlib.py" />
     <Compile Include="canopenpy.py" />
+    <Compile Include="common.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="constants.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="exceptions.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="factory.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="interfaces.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="ni8473a.py" />
+    <Compile Include="pdu.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="read_message.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="sync.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="transaction.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <InterpreterReference Include="{9a7a9026-48c1-4688-9d5d-e5699d47d074}\3.4" />

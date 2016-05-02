@@ -265,9 +265,10 @@ class Can:
                             self.setCurrentChannel(channel)
                     except ni8473a.canError as ce:
                         logging.error(ce)
-                    except KeyError as ke:
-                        logging.error(ke)
-    
+                        raise Exception(ce)
+                    except :
+                        logging.error('Unknown error')
+                        raise Exception('Unknown error')
 
 
 
@@ -537,7 +538,7 @@ class CanOpen():
         #test data on 'vis string' and create message
         if Type == 'vis string': 
             if not type(data)  is str:
-                logging.error('Required visible string for non string data' )
+                #logging.error('Required visible string for non string data' )
                 raise Exception('Required visible string for non string data')
            # The Initiate SDO Download with indicated data size 
             msg =  ((1<<5)+1).to_bytes(1,'little')+(Index).to_bytes(2,'little')+\
@@ -555,8 +556,8 @@ class CanOpen():
         #Test abort message
         if msgRet[0] & CANOPEN_SDO_CS_RX_ADT : 
                 AbortCode =  struct.unpack_from('L',msgRet,4)[0] # Return error code + abort 
-                logging.error ( 'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
-                for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )                
+                #logging.error ( 'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
+                #for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )                
                 raise Exception(  'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
                 for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )
         
