@@ -724,7 +724,7 @@ class CanOpen():
     def GetBH( self, h , NodeId = None , BitNumber = 0 , unsign = 0  ) :
 # function Arr = GetBH( h , NodeId , BitNumber , usign ) 
 
-        Value,AbortFlag = self.SDOUpload( h , NodeId , 8240 , BitNumber , 'vis string' , 3 , decode = False); # 8240 = 0x2030
+        Value,AbortFlag = self.SDOUpload( NodeId , 8240 , BitNumber , 'vis string' , 3 , decode = False); # 8240 = 0x2030
         
         Value0 = struct.unpack_from('<B',Value)[0] 
         recorderTsMultiplier = Value0 & 0xf 
@@ -759,7 +759,7 @@ class CanOpen():
     def GetRU( self, h , NodeId = None , BitNumber = 0 , unsign = 0 , bDmdRec = 0 ) :
 # function Arr = GetBH( h , NodeId , BitNumber , usign ) 
 
-        Value,AbortFlag = self.SDOUpload( h , NodeId , 8277 if bDmdRec else 8240 , BitNumber , 'vis string' , 3 , decode = False); # 8240 = 0x2030
+        Value = self.SDOUpload(  NodeId , 8277 if bDmdRec else 8240 , BitNumber , 'vis string' , 3 , decode = False); # 8240 = 0x2030
         
         dataType = struct.unpack_from('<B',Value)[0] # 0 = short , 1 = long , 2 = float , 3 = double , 4 = __int64
         dataLength = struct.unpack_from('<H',Value,1)[0]
@@ -794,7 +794,7 @@ class CanOpen():
             error ('Bad data type in RU message') 
 
 
-    def SetOsIntCmd( self, h  , str , NodeId = None , Timeout = 0.1 ): 
+    def SetOsIntCmd( self, h  , str , NodeId = None  ): 
     #function str = SetOsIntCmd( h , NodeId , str , Timeout )
     # Purpose: Send string to OS interpreter 
     #
@@ -807,7 +807,7 @@ class CanOpen():
     # Returns: 
     # str: Received string
     # Set object 0x1024 (OS mode) to execute immediate      
-        self.SDODownload( h , NodeId , 4131 , 1 , str , 'vis string' , Timeout , 'OS interpreter send cmd'); # 4131 = 0x1023
+        self.SDODownload(  NodeId , 4131 , 1 , str , 'vis string' , 'OS interpreter send cmd'); # 4131 = 0x1023
 
     #Wait till target is ready 
     #Result = 0 for completed, no reply 
@@ -816,11 +816,11 @@ class CanOpen():
     #3 error , reply there 
         Value = 255 ;
         while Value == 255 : 
-           Value,AbortFlag = self.SDOUpload( h , NodeId , 4131 , 2 , 'unsigned8' , Timeout ,'OS interpreter wait ready ');# 4131 = 0x1023
+           Value,AbortFlag = self.SDOUpload( NodeId , 4131 , 2 , 'unsigned8' , 'OS interpreter wait ready ');# 4131 = 0x1023
 
         assert Value & 1 , 'Os interpreter failed' 
 
-        Value,ErrCode = self.SDOUpload( h , NodeId , 4131 , 3 , 'vis string' , Timeout ,'OS interpreter get result ');# 4131 = 0x1023
+        Value = self.SDOUpload( h , NodeId , 4131 , 3 , 'vis string' , Timeout ,'OS interpreter get result ');# 4131 = 0x1023
         return Value.replace(chr(0),'') 
         #return ''.join(([chr(i) for i in Value if i]))
 
