@@ -182,12 +182,12 @@ class Can:
     '''This  factory class  forces the creation of can objects to occur through the coommon factory'''
     class Kvaser(canlib.canlib):
         ''''''
-        def __init__(self,):
+        def __init__(self):
             canlib.canlib.__init__(self)
             # how many channels are set
-            self.channels = self.getNumberOfChannels()
+            #self.channels = self.getNumberOfChannels()
             #create data structure of list of tuples 
-            self.channels = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
+            #self.channels = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
             # save opened channels in data structure 
             self.openedChannels = SimpleList()
             # baud rates dictionary
@@ -233,12 +233,12 @@ class Can:
 
 
     class NI_8473(ni8473a.canlib):
-        def __init__(self,):
+        def __init__(self):
             ni8473a.canlib.__init__(self)
             # how many channels are set
-            self.channels = self.getNumberOfChannels()
+            #self.channels = self.getNumberOfChannels()
             #create data structure of list of tuples 
-            self.channels = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
+            #self.channels = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
             # save opened channels in data structure 
             self.openedChannels = SimpleList()
             # baud rates dictionary
@@ -283,18 +283,18 @@ class Can:
             caution : this procedure is thread unsafe'''
             self.currentChannel=ch
 
-    def factory(type):
+    def factory(self,type):
         #return eval(type + "()")
         try:
             type = type.lower()
-            if type == "kvaser": return Kvaser()
-            if type == "ni__8473"|\
-               type == "8473"|\
-               type == "ni": return NI_8473()
+            if type == "kvaser": return self.Kvaser()
+            if type == "ni__8473" or\
+               type == "8473"or\
+               type == "ni": return self.NI_8473()
         except Exception as ex:
             logging.error(ex)
 
-            assert 0, "Unknown driver name : " + type
+           # assert 0, "Unknown driver name : " + type
        
 
 
@@ -843,3 +843,10 @@ class CanOpen():
 
 #print(c.ping(0,(45,57,58,66,78,45,78,85)))
 #c.closekvaser(0)
+
+c= Can()
+
+print(c)
+print(c.factory('kvaser'))
+print(c.factory('kvaser'))
+print(c.factory('ni'))

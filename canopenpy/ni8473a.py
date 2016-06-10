@@ -328,9 +328,12 @@ class canlib(object):
             logging.basicConfig(stream=sys.stderr,
                                 level=logging.ERROR,
                                 format=fmt)
-
+        
         if sys.platform.startswith('win'):
-            self.dll = WinDLL('nican')        
+            try:
+                self.dll = WinDLL('nican')
+            except Exception as ex:
+                raise Exception( 'The error - {0} - occured during attempt to open {1} driver'.format( ex,'nican' ))
           
         else:
             logging.error("This library doesn't support this OS")
