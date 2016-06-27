@@ -605,6 +605,7 @@ class CanOpen():
                 meser  = data + chr(0) * (7-nNext) 
                 Complete = 1 
                 data = [] 
+
             
             msg =  ((t<<4)+((7-nNext)<<1)+Complete).to_bytes(1,'little')+ meser.encode('ascii')
             #Sends SDO requests to each node by using message ID:600h + Node ID  
