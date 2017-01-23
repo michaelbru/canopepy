@@ -1,4 +1,161 @@
-﻿import canlib
+﻿'''
+Abbreviations
+--------------
+CAN:
+Controller Area Network is an internally standardized serial bus system..
+COB:
+Communication Object. A unit of transportation in a CAN network. Data must be sent across a CAN
+Network inside a COB. There are 2048 different COB's in a CAN network. A COB can contain at most
+8 bytes of data.
+COB-ID:
+Each COB is uniquely identified in a CAN network by a number called the COB Identifier (COB-ID).
+The COB-ID determines the priority of that COB for the MAC sub-layer.
+Remote COB:
+A COB whose transmission can be requested by another device.
+NMT:
+Network Management. One of the service elements of the application layer in the CAN Reference
+Model. The NMT serves to configure, initialise, and handle errors in a CAN network.
+Node-ID:
+The Node-ID of the NMT Slave has to be assigned uniquely, or 0. If 0, the protocol addresses all NMT
+Slaves.
+PDO:
+Process Data Object.
+SDO:
+Service Data Object.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+service objects
+---------------
+The functionality the application layer offers to
+an application is logically divided over different service objects in the application layer.
+Applications interact by invoking services of a service object in the application layer.
+
+..this object exchanges data via the CAN Network with (a) peer service object(s) via a
+protocol.This protocol is described in the Protocol Specification of that service object.
+There are four different service primitives:
+1) request
+2) indication
+3) response
+4) confirmation
+
+Application Layer Service Types
+-------------------------------
+� A local service involves only the local service object. The application issues a request to its local
+service object that executes the requested service without communicating with (a) peer service
+object(s).
+� An unconfirmed service involves one or more peer service objects. The application issues a
+request to its local service object. This request is transferred to the peer service object(s) that
+each pass it to their application as an indication. The result is not confirmed back.
+� A confirmed service can involve only one peer service object. The application issues a request to
+its local service object. This request is transferred to the peer service object that passes it to the
+other application as an indication. The other application issues a response that is transferred to
+the originating service object that passes it as a confirmation to the requesting application.
+� A provider initiated service involves only the local service object. The service object (being the
+service provider) detects an event not solicited by a requested service. This event is then
+indicated to the application.
+Unconfirmed and confirmed services are collectively called remote services.
+
+ General
+ -------
+Object Dictionary serves as an interface between the communication and the application.
+The complete description of a device�s application with respect to the data items in the Object
+Dictionary is named device profile.
+Each object within the dictionary is addressed using a 16-bit index.
+__________________
+Index (hex) Object
+__________________
+0000 not used
+0001-001F Static Data Types
+0020-003F Complex Data Types
+0040-005F Manufacturer Specific Complex Data Types
+0060-007F Device Profile Specific Static Data Types
+0080-009F Device Profile Specific Complex Data Types
+00A0-0FFF Reserved for further use
+1000-1FFF Communication Profile Area
+2000-5FFF Manufacturer Specific Profile Area
+6000-9FFF Standardised Device Profile Area
+A000-BFFF Standardised Interface Profile Area
+C000-FFFF Reserved for further use
+
+Communication Model
+-------------------
+� Master/Slave relationship  
+Unconfirmed Master Slave Communication:
+    master request --> data  --> slave indication
+Confirmed Master Slave Communication:
+    master request   --> slave indication 
+    confirmation <--data <-- responce
+� Client/Server relationship 
+    client request  --> data -->server indication 
+    confirmation <--data <-- server responce
+� Producer/Consumer relationship 
+Push model :
+    producer request -->data-->consumers indication
+Pull model :
+    producer <-- consumers request
+    producer responce --> data --> consumers confirmation / indication
+
+Communication Objects
+=====================
+Process Data Object (PDO)
+--------------------------
+Provide interface to the application objects and correspond to entries in device Object Dictionary.
+PDOs are described by the PDO communication parameter (20h) and the PDO mapping parameter (21h).
+The PDO communication parameter describes the communication capabilities of the PDO.
+The PDO mapping parameter contains information about the contents of the PDOs (device variables). 
+The indices of the corresponding Object Dictionary entries
+are computed by the following formulas:
+� RPDO communication parameter index = 1400h + RPDO-number -1
+� TPDO communication parameter index = 1800h + TPDO-number -1
+� RPDO mapping parameter index = 1600h + RPDO-number -1
+� TPDO mapping parameter index = 1A00h + TPDO-number -1
+PDO Services
+-----------
+PDO transmission follows the producer/consumer relationship.
+Write PDO - push model is valid
+Read PDO - the pull model is valid
+
+Service Data Object (SDO)
+-------------------------
+The client can control via a multiplexor (index and sub-index of the Object Dictionary) which data set is
+to be transferred. The contents of the data set are defined within the Object Dictionary.
+transfer type
+-------------
+For SDOs, it is also possible to transfer a data set of up to four bytes during the initialisation phase. This
+mechanism is called an expedited transfer.
+segmented - 
+block -
+After block download the server indicates the client the last successfully received segment of this
+block transfer by acknowledging this segment sequence number.
+After block upload the client indicates the server the last successfully received segment of this block
+transfer by acknowledging this segment sequence number.
+For all transfer types it is the client that takes the initiative for a transfer. The owner of the accessed
+Object Dictionary is the server of the SDO. Both the client or the server can take the initiative to abort
+the transfer of a SDO.
+SDOs are described by the SDO communication parameter record (22h).The structure of this data
+type is explained in 9.5.4. The SDO communication parameter describes the communication
+capabilities of the Server-SDOs and Client-SDOs (CSDO). The indices of the corresponding Object
+Dictionary entries are computed by the following formulas:
+� SSDO communication parameter index = 1200h + SSDO-number -1
+� CSDO communication parameter index = 1280h + CSDO-number -1
+
+SDO Services
+------------
+The model for the SDO communication is the Client/Server model.
+
+SDO Download, which can be split up into
+- Initiate SDO Download
+- Download SDO Segment
+
+SDO Upload, which can be split up into
+- Initiate SDO Upload
+- Upload SDO Segment
+
+Abort SDO Transfer
+
+'''
+
+
+import canlib
 import ni8473a
 import struct
 import queue
