@@ -155,8 +155,8 @@ Abort SDO Transfer
 '''
 
 
-import canlib
-import ni8473a
+#import canlib
+#import ni8473a
 import struct
 import queue
 import logging
@@ -305,153 +305,153 @@ CANOPEN_SDO_CS_DB_SS_BD_END  =0x01
 CANOPEN_SDO_CS_DB_SS_MASK    =0x03
 
 
-class SimpleList:
-    ''' simple list is    
-    a list of objects of the form (index,object).
-    where index is integer and object is an object of type canlib'''
-    def __init__(self):
-        self.simpleList = []
+#class SimpleList:
+#    ''' simple list is    
+#    a list of objects of the form (index,object).
+#    where index is integer and object is an object of type canlib'''
+#    def __init__(self):
+#        self.simpleList = []
 
-    def add(self,ch,hnd):
-         for i in range(len(self.simpleList)):
-            if  self.simpleList[i][0] == ch:                 
-                return 
-         self.simpleList.append((ch,hnd))
+#    def add(self,ch,hnd):
+#         for i in range(len(self.simpleList)):
+#            if  self.simpleList[i][0] == ch:                 
+#                return 
+#         self.simpleList.append((ch,hnd))
 
-    def remove(self,ch):
-        for i in range(len(self.simpleList)):
-            if  self.simpleList[i][0] == ch:
-                del self.simpleList[i] 
-                break 
+#    def remove(self,ch):
+#        for i in range(len(self.simpleList)):
+#            if  self.simpleList[i][0] == ch:
+#                del self.simpleList[i] 
+#                break 
 
-    def read(self):
-        #for i in range(len(self.simpleList)):
-            print( self.simpleList)  #[0],self.simpleList[i][0]
+#    def read(self):
+#        #for i in range(len(self.simpleList)):
+#            print( self.simpleList)  #[0],self.simpleList[i][0]
 
-    def get(self,ch):
-         for i in range(len(self.simpleList)):
-            if  self.simpleList[i][0] == ch:                 
-                return self.simpleList[i]
-         return None
-
-
-class Can:
-    '''This  factory class  forces the creation of can objects to occur through the coommon factory'''
-    class Kvaser(canlib.canlib):
-        ''''''
-        def __init__(self):
-            canlib.canlib.__init__(self)
-            # how many channels are set
-            #self.channels = self.getNumberOfChannels()
-            #create data structure of list of tuples 
-            #self.channels = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
-            # save opened channels in data structure 
-            self.openedChannels = SimpleList()
-            # baud rates dictionary
-            self.BaudTable = {1000000:canlib.canBITRATE_1M,500000:canlib.canBITRATE_500K,
-                              250000:canlib.canBITRATE_250K,125000:canlib.canBITRATE_125K,
-                              100000:canlib.canBITRATE_100K}
-            #current channel 
-            self.currentChannel = -1
-
-        def open(self,channel,bitrate):
-                    # if channel is active open channel (kvaser)
-                    try:
-                        if channel in [ ch[0]  for ch in self.channels] :
-                            # Don't allow sharing of this circuit between applications
-                            self.ch = self.openChannel(channel, canlib.canOPEN_ACCEPT_VIRTUAL)#canlib.canOPEN_EXCLUSIVE)
-                            print ("Using channel: %s, EAN: %s" % 
-                                   (self.ch.getChannelData_Name(), self.ch.getChannelData_EAN()))
-
-                            self.ch.setBusOutputControl(canlib.canDRIVER_NORMAL)
-                            baud = self.BaudTable[bitrate]
-                            self.ch.setBusParams(baud)
-                            self.ch.busOn()
-                            self.openedChannels.add(channel,self.ch)
-                            self.setCurrentChannel(channel)
-                    except canError as ce:
-                        logging.error(ce)
-                    except KeyError as ke:
-                        logging.error(ke)
+#    def get(self,ch):
+#         for i in range(len(self.simpleList)):
+#            if  self.simpleList[i][0] == ch:                 
+#                return self.simpleList[i]
+#         return None
 
 
-        def close(self,ch=0):
-            if ch in [ ch[0]  for ch in self.channels] :
-                channel = self.openedChannels.get(ch)
-                channel[1].busOff()
-                channel[1].close()
-                self.openedChannels.remove(ch)
+#class Can:
+#    '''This  factory class  forces the creation of can objects to occur through the coommon factory'''
+#    class Kvaser(canlib.canlib):
+#        ''''''
+#        def __init__(self):
+#            canlib.canlib.__init__(self)
+#            # how many channels are set
+#            #self.channels = self.getNumberOfChannels()
+#            #create data structure of list of tuples 
+#            #self.channels = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
+#            # save opened channels in data structure 
+#            self.openedChannels = SimpleList()
+#            # baud rates dictionary
+#            self.BaudTable = {1000000:canlib.canBITRATE_1M,500000:canlib.canBITRATE_500K,
+#                              250000:canlib.canBITRATE_250K,125000:canlib.canBITRATE_125K,
+#                              100000:canlib.canBITRATE_100K}
+#            #current channel 
+#            self.currentChannel = -1
+
+#        def open(self,channel,bitrate):
+#                    # if channel is active open channel (kvaser)
+#                    try:
+#                        if channel in [ ch[0]  for ch in self.channels] :
+#                            # Don't allow sharing of this circuit between applications
+#                            self.ch = self.openChannel(channel, canlib.canOPEN_ACCEPT_VIRTUAL)#canlib.canOPEN_EXCLUSIVE)
+#                            print ("Using channel: %s, EAN: %s" % 
+#                                   (self.ch.getChannelData_Name(), self.ch.getChannelData_EAN()))
+
+#                            self.ch.setBusOutputControl(canlib.canDRIVER_NORMAL)
+#                            baud = self.BaudTable[bitrate]
+#                            self.ch.setBusParams(baud)
+#                            self.ch.busOn()
+#                            self.openedChannels.add(channel,self.ch)
+#                            self.setCurrentChannel(channel)
+#                    except canError as ce:
+#                        logging.error(ce)
+#                    except KeyError as ke:
+#                        logging.error(ke)
+
+
+#        def close(self,ch=0):
+#            if ch in [ ch[0]  for ch in self.channels] :
+#                channel = self.openedChannels.get(ch)
+#                channel[1].busOff()
+#                channel[1].close()
+#                self.openedChannels.remove(ch)
 
         
-        def setCurrentChannel( self,ch ):
-            '''if two or more channels had been opened then set one of those for read/write 
-            caution : this procedure is thread unsafe'''
-            self.currentChannel=ch
+#        def setCurrentChannel( self,ch ):
+#            '''if two or more channels had been opened then set one of those for read/write 
+#            caution : this procedure is thread unsafe'''
+#            self.currentChannel=ch
 
 
-    class NI_8473(ni8473a.canlib):
-        def __init__(self):
-            ni8473a.canlib.__init__(self)
-            # how many channels are set
-            #self.channels = self.getNumberOfChannels()
-            #create data structure of list of tuples 
-            #self.channels = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
-            # save opened channels in data structure 
-            self.openedChannels = SimpleList()
-            # baud rates dictionary
-            self.BaudTable = {1000000:ni8473a.NC_BAUD_1000K ,500000:ni8473a.NC_BAUD_500K,
-                                250000:ni8473a.NC_BAUD_250K,125000:ni8473a.NC_BAUD_125K,
-                                100000:ni8473a.NC_BAUD_100K}
-            #current channel 
-            self.currentChannel = -1
+#    class NI_8473(ni8473a.canlib):
+#        def __init__(self):
+#            ni8473a.canlib.__init__(self)
+#            # how many channels are set
+#            #self.channels = self.getNumberOfChannels()
+#            #create data structure of list of tuples 
+#            #self.channels = [ (ch,self.getChannelData_EAN(ch)) for ch in range(self.channels)]
+#            # save opened channels in data structure 
+#            self.openedChannels = SimpleList()
+#            # baud rates dictionary
+#            self.BaudTable = {1000000:ni8473a.NC_BAUD_1000K ,500000:ni8473a.NC_BAUD_500K,
+#                                250000:ni8473a.NC_BAUD_250K,125000:ni8473a.NC_BAUD_125K,
+#                                100000:ni8473a.NC_BAUD_100K}
+#            #current channel 
+#            self.currentChannel = -1
 
-        def open(self,channel,bitrate):
-                    # if channel is active open channel (ni)
-                    try:
-                        if channel in [ ch[0]  for ch in self.channels] :
-                            # Don't allow sharing of this circuit between applications
-                            self.ch = self.openChannel(channel)#canlib.canOPEN_EXCLUSIVE)
-                            print ("Using channel: %s, EAN: %s" % 
-                                   (self.ch.getChannelData_Name(), self.ch.getChannelData_EAN()))   
-                            #call always before config
-                            self.ch.setBaud(baud = self.BaudTable[bitrate])
-                            self.ch.config()   
-                            self.ch.open()
-                            self.ch.action()
-                            self.openedChannels.add(channel,self.ch)
-                            self.setCurrentChannel(channel)
-                    except ni8473a.canError as ce:
-                        logging.error(ce)
-                        raise Exception(ce)
-                    except :
-                        logging.error('Unknown error')
-                        raise Exception('Unknown error')
+#        def open(self,channel,bitrate):
+#                    # if channel is active open channel (ni)
+#                    try:
+#                        if channel in [ ch[0]  for ch in self.channels] :
+#                            # Don't allow sharing of this circuit between applications
+#                            self.ch = self.openChannel(channel)#canlib.canOPEN_EXCLUSIVE)
+#                            print ("Using channel: %s, EAN: %s" % 
+#                                   (self.ch.getChannelData_Name(), self.ch.getChannelData_EAN()))   
+#                            #call always before config
+#                            self.ch.setBaud(baud = self.BaudTable[bitrate])
+#                            self.ch.config()   
+#                            self.ch.open()
+#                            self.ch.action()
+#                            self.openedChannels.add(channel,self.ch)
+#                            self.setCurrentChannel(channel)
+#                    except ni8473a.canError as ce:
+#                        logging.error(ce)
+#                        raise Exception(ce)
+#                    except :
+#                        logging.error('Unknown error')
+#                        raise Exception('Unknown error')
 
 
 
-        def close(self,ch=0):
-            if ch in [ ch[0]  for ch in self.channels] :
-                channel = self.openedChannels.get(ch)
-                channel[1].close()
-                self.openedChannels.remove(ch)
+#        def close(self,ch=0):
+#            if ch in [ ch[0]  for ch in self.channels] :
+#                channel = self.openedChannels.get(ch)
+#                channel[1].close()
+#                self.openedChannels.remove(ch)
 
-        def setCurrentChannel( self,ch ):
-            '''if two or more channels had been opened then set one of those for read/write 
-            caution : this procedure is thread unsafe'''
-            self.currentChannel=ch
+#        def setCurrentChannel( self,ch ):
+#            '''if two or more channels had been opened then set one of those for read/write 
+#            caution : this procedure is thread unsafe'''
+#            self.currentChannel=ch
 
-    def factory(self,type):
-        #return eval(type + "()")
-        try:
-            type = type.lower()
-            if type == "kvaser": return self.Kvaser()
-            if type == "ni__8473" or\
-               type == "8473"or\
-               type == "ni": return self.NI_8473()
-        except Exception as ex:
-            logging.error(ex)
+#    def factory(self,type):
+#        #return eval(type + "()")
+#        try:
+#            type = type.lower()
+#            if type == "kvaser": return self.Kvaser()
+#            if type == "ni__8473" or\
+#               type == "8473"or\
+#               type == "ni": return self.NI_8473()
+#        except Exception as ex:
+#            logging.error(ex)
 
-           # assert 0, "Unknown driver name : " + type
+#           # assert 0, "Unknown driver name : " + type
        
 
 
@@ -459,9 +459,9 @@ class Can:
 # Use factory class to choose appropriate class 
 # Agregate this factory to CanOpen class
 class CanOpen():
-    def __init__(self,canDriverName="kvaser"):
+    def __init__(self,canlib):
         """"""
-        self.can = Can.factory(canDriverName)
+        self.can = canlib
         self.timeout = 0.002
 
     def AnalyzeSdoAbort( self, errcode): 
@@ -478,6 +478,12 @@ class CanOpen():
         self.can.close(ch)
 
     def pingCanMessage(self,nodeIdSend,nodeIdReply,msg):
+        '''
+        :param nodeIdSend : Communication object ID for request
+        :param nodeIdReply: Communication object Id for responce
+        :param msg        : message to be sent 
+        :returns          : responce message
+        '''
         try:
             self.can.ch.write(nodeIdSend,msg)
             wait  = int(self.timeout/0.001)          
@@ -624,10 +630,11 @@ class CanOpen():
             if msgRet[0] & CANOPEN_SDO_CS_RX_ADT : 
                 AbortCode =  struct.unpack_from('L',msgRet,4)[0] # Return error code + abort 
                 logging.error ( 'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
-                for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )                
+                for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )  
+                               
                 raise Exception(  'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
                 for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )
-
+                #return AbortCode
 
             #Test command specifier 
             if (msgRet[0] & CANOPEN_SDO_CS_MASK ) != 0:
@@ -660,7 +667,7 @@ class CanOpen():
 
     def SDODownload(self, node, index, subindex, data , Type,AbortMsg = None ):
         """
-
+        SetSdo~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
         The Initiate SDO Download – Request
@@ -713,6 +720,8 @@ class CanOpen():
         #Test abort message
         if msgRet[0] & CANOPEN_SDO_CS_RX_ADT : 
                 AbortCode =  struct.unpack_from('L',msgRet,4)[0] # Return error code + abort 
+                assert not (type(AbortMsg) is str), AbortMsg+ ': SetSdo Abort code [' + self.AnalyzeSdoAbort(AbortCode) + ']\
+                for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) 
                 #logging.error ( 'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
                 #for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )                
                 raise Exception(  'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
@@ -879,7 +888,7 @@ class CanOpen():
  #BitNumber: The index of the recorded value 
  #unsign: 1 if numbers are to be brought unsigned  
         
-    def GetBH( self, h , NodeId = None , BitNumber = 0 , unsign = 0  ) :
+    def GetBH( self , NodeId = None , BitNumber = 0 , unsign = 0  ) :
 # function Arr = GetBH( h , NodeId , BitNumber , usign ) 
 
         Value,AbortFlag = self.SDOUpload( NodeId , 8240 , BitNumber , 'vis string' , 3 , decode = False); # 8240 = 0x2030
@@ -914,7 +923,7 @@ class CanOpen():
 # double 
             return [struct.unpack_from('<d',Value,7+i*8)[0] for i in range(dataLength) ]
 
-    def GetRU( self, h , NodeId = None , BitNumber = 0 , unsign = 0 , bDmdRec = 0 ) :
+    def GetRU( self, NodeId = None , BitNumber = 0 , unsign = 0 , bDmdRec = 0 ) :
 # function Arr = GetBH( h , NodeId , BitNumber , usign ) 
 
         Value = self.SDOUpload(  NodeId , 8277 if bDmdRec else 8240 , BitNumber , 'vis string' , 3 , decode = False); # 8240 = 0x2030
@@ -952,7 +961,7 @@ class CanOpen():
             error ('Bad data type in RU message') 
 
 
-    def SetOsIntCmd( self, h  , str , NodeId = None  ): 
+    def SetOsIntCmd( self , str , NodeId = None  ): 
     #function str = SetOsIntCmd( h , NodeId , str , Timeout )
     # Purpose: Send string to OS interpreter 
     #
@@ -1002,9 +1011,3 @@ class CanOpen():
 #print(c.ping(0,(45,57,58,66,78,45,78,85)))
 #c.closekvaser(0)
 
-c= Can()
-
-print(c)
-print(c.factory('kvaser'))
-print(c.factory('kvaser'))
-print(c.factory('ni'))
