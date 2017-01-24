@@ -494,7 +494,7 @@ class CanOpen():
                 time.sleep(0.001)
                 wait-=1                        
             return bytearray(ret[1])
-                  
+            raise   Exception('Timeout')    
         except (self.can.canError) as ex:
            # print ( ex )
            raise ex
