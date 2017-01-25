@@ -1,9 +1,10 @@
-from ctypes import *
+﻿from ctypes import *
 import sys
 import struct
 import logging
 import inspect
 import time
+from canlib import dict
 #------------------------------------------------------------------#
 # Canlib constants                                                 #
 #------------------------------------------------------------------#
@@ -135,6 +136,16 @@ canDRIVER_OFF                           = 0
 
 kvEVENT_TYPE_KEY                        = 1
 
+BaudTable = dict(
+(canBITRATE_1M, -1),
+(canBITRATE_500K,-2),
+(canBITRATE_250K,-3),
+(canBITRATE_125K,-4),
+(canBITRATE_100K,-5),
+(canBITRATE_62K,-6),
+(canBITRATE_50K,-7),
+(canBITRATE_83K,-8),
+(canBITRATE_10K,-9) )
 
 class canError(Exception):
     def __init__(self, canlib, canERR):
@@ -419,6 +430,26 @@ class canChannel(object):
         self.index     = channel
         self.canlib.fn = 'openChannel'
         self.handle    = self.dll.canOpenChannel(channel, flags)
+
+    def open(self,channel,bitrate):
+                # if channel is active open channel (kvaser)
+                try:
+                    if channel in self.canlib.getNumberOfChannels():
+                        # Don't allow sharing of this circuit between applications
+                        self.ch = self.openChannel(channel, canlib.canOPEN_ACCEPT_VIRTUAL)#canlib.canOPEN_EXCLUSIVE)
+                        print ("Using channel: %s, EAN: %s" % 
+                                (self.canlib.getChannelData_Name(), self.canlib.getChannelData_EAN()))
+
+                        self.setBusOutputControl(canlib.canDRIVER_NORMAL)
+                        baud = BaudTable[bitrate]
+                        self.ch.setBusParams(baud)
+                        self.ch.busOn()
+                        self.openedChannels.add(channel,self.ch)
+                        self.setCurrentChannel(channel)
+                except canError as ce:
+                    logging.error(ce)
+                except KeyError as ke:
+                    logging.error(ke)
 
     def close(self):
         '''This function closes the channel associated with the handle.

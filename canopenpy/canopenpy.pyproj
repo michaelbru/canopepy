@@ -42,6 +42,9 @@
     <Compile Include="interfaces.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="mcanopen.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="ni8473a.py" />
     <Compile Include="pdu.py">
       <SubType>Code</SubType>

@@ -1,10 +1,9 @@
-'''
+﻿'''
 Contains base classes for Canopen request/response/error packets
 '''
 from interfaces import Singleton
 from exceptions import NotImplementedException
 from constants import Defaults
-#from pyCanopen.utilities import rtuFrameSize
 
 #---------------------------------------------------------------------------#
 # Logging
