@@ -485,19 +485,19 @@ class CanOpen():
         :returns          : responce message
         '''
         try:
-            self.can.ch.write(nodeIdSend,msg)
+            self.can.write(nodeIdSend,msg)
             wait  = int(self.timeout/0.001)          
             while   wait:              
-                ret = self.can.ch.read(self.timeout)
+                ret = self.can.read(0)
                 if ret[0] == nodeIdReply: 
                     break
                 time.sleep(0.001)
                 wait-=1                        
             return bytearray(ret[1])
             raise   Exception('Timeout')    
-        except (self.can.canError) as ex:
-           # print ( ex )
-           raise ex
+        except Exception as ex:
+           print ( ex )
+           pass
 
     def read_can_frame(self):
         """
@@ -505,7 +505,7 @@ class CanOpen():
         """ 
         if self.can != None:       
             try:   
-                can_frame = self.can.ch.read()
+                can_frame = self.can.read()
             except:raise Exception("CAN frame read error")
             return can_frame
         else:
@@ -527,7 +527,7 @@ class CanOpen():
     # 
     #---------------------------------------------------------------------------
 
-    def SDOUpload(self, index, subindex,TypeIn,AbortMsg = None):
+    def SDOUpload(self,nodeId, index, subindex,TypeIn,AbortMsg = None):
         """
             The Initiate SDO Upload - Request
             =================================
@@ -562,7 +562,7 @@ class CanOpen():
         msg =  (64).to_bytes(1,'little')+(index).to_bytes(2,'little')+(subindex).to_bytes(5,'little') 
         #Sends SDO requests to each node by using message ID:600h + Node ID  
         #Expects reply in message ID: 580h + Node ID      
-        msgRet = self.pingCanMessage( nodeId + 0x600 ,  nodeId + 0x580 ,msg , tout = 0.02) 
+        msgRet = self.pingCanMessage( nodeId + 0x600 ,  nodeId + 0x580 ,msg ) 
 
         # verify returned message~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         #Test abort message
@@ -583,7 +583,7 @@ class CanOpen():
         if msgRet[0] & 2 : 
             # calculate number of data bytes
             n = 4 - (( msgRet[0] >> 2 ) & 3 ) if ( msgRet[0] & 2 ) else 4 #get number of expedited bytes
-            if  n <= TypeLength[Type][0]:
+            if  n < TypeLength[Type][0]:
                 logging.error('No enough bytes in the return message for the desired data type' )
                 raise Exception('No enough bytes in the return message for the desired data type')
            
@@ -622,7 +622,7 @@ class CanOpen():
         # number of data bytes to recieve
         nDelivery = struct.unpack_from('L',msgRet,4)[0] if ( msgRet[0] & 1 ) else -1
         while True:
-            msgRet = self.pingCanMessage( nodeId + 0x600 ,  nodeId + 0x580 ,msg , tout = 0.02) 
+            msgRet = self.pingCanMessage( nodeId + 0x600 ,  nodeId + 0x580 ,msg ) 
             # toggle bit
             msg = (msg[0] ^ 0x10).to_bytes(1,'little') + msg[1:]
             # verify returned message~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -665,7 +665,7 @@ class CanOpen():
 
 
 
-    def SDODownload(self, node, index, subindex, data , Type,AbortMsg = None ):
+    def SDODownload(self, nodeId, Index, SubIndex, data , Type,AbortMsg = None ):
         """
         SetSdo~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -714,18 +714,18 @@ class CanOpen():
 
         #Sends SDO requests to each node by using message ID:600h + Node ID  
         #Expects reply in message ID: 580h + Node ID     
-        msgRet = self.pingCanMessage( nodeId + 0x600 ,  nodeId + 0x580 ,msg , tout = 0.02) 
+        msgRet = self.pingCanMessage( nodeId + 0x600 ,  nodeId + 0x580 ,msg ) 
          
         # verify returned message~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         #Test abort message
         if msgRet[0] & CANOPEN_SDO_CS_RX_ADT : 
                 AbortCode =  struct.unpack_from('L',msgRet,4)[0] # Return error code + abort 
                 assert not (type(AbortMsg) is str), AbortMsg+ ': SetSdo Abort code [' + self.AnalyzeSdoAbort(AbortCode) + ']\
-                for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) 
+                for object Node ID:{0} index {1} subindex {2} '.format( nodeId , Index , SubIndex) 
                 #logging.error ( 'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
                 #for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )                
                 raise Exception(  'Abort code [' + self.AnalyzeSdoAbort(AbortCode) + '] \
-                for object Node ID:{0} index {1} subindex {2} '.format( NodeId , Index , SubIndex) )
+                for object Node ID:{0} index {1} subindex {2} '.format( nodeId , Index , SubIndex) )
         
         #Test command specifier and multiplexor
         if (((msgRet[0] & CANOPEN_SDO_CS_MASK ) >> 5 ) != 3) or ( msgRet[1:4] != msg[1:4] ) : 
@@ -776,7 +776,7 @@ class CanOpen():
             msg =  ((t<<4)+((7-nNext)<<1)+Complete).to_bytes(1,'little')+ meser.encode('ascii')
             #Sends SDO requests to each node by using message ID:600h + Node ID  
             #Expects reply in message ID: 580h + Node ID     
-            msgRet = self.pingCanMessage( nodeId + 0x600 ,  nodeId + 0x580 ,msg , tout = 0.02) 
+            msgRet = self.pingCanMessage( nodeId + 0x600 ,  nodeId + 0x580 ,msg ) 
                 
             # verify returned message~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             #Test abort message
@@ -961,7 +961,7 @@ class CanOpen():
             error ('Bad data type in RU message') 
 
 
-    def SetOsIntCmd( self , str , NodeId = None  ): 
+    def SetOsIntCmd( self , str   ): 
     #function str = SetOsIntCmd( h , NodeId , str , Timeout )
     # Purpose: Send string to OS interpreter 
     #
@@ -974,7 +974,7 @@ class CanOpen():
     # Returns: 
     # str: Received string
     # Set object 0x1024 (OS mode) to execute immediate      
-        self.SDODownload(  NodeId , 4131 , 1 , str , 'vis string' , 'OS interpreter send cmd'); # 4131 = 0x1023
+        self.SDODownload( self.nodeId , 4131 , 1 , str , 'vis string' , 'OS interpreter send cmd'); # 4131 = 0x1023
 
     #Wait till target is ready 
     #Result = 0 for completed, no reply 
@@ -983,11 +983,11 @@ class CanOpen():
     #3 error , reply there 
         Value = 255 ;
         while Value == 255 : 
-           Value,AbortFlag = self.SDOUpload( NodeId , 4131 , 2 , 'unsigned8' , 'OS interpreter wait ready ');# 4131 = 0x1023
+           Value = self.SDOUpload( self.nodeId , 4131 , 2 , 'unsigned8' , 'OS interpreter wait ready ');# 4131 = 0x1023
 
         assert Value & 1 , 'Os interpreter failed' 
 
-        Value = self.SDOUpload( h , NodeId , 4131 , 3 , 'vis string' , Timeout ,'OS interpreter get result ');# 4131 = 0x1023
+        Value = self.SDOUpload(  self.nodeId , 4131 , 3 , 'vis string' ,'OS interpreter get result ');# 4131 = 0x1023
         return Value.replace(chr(0),'') 
         #return ''.join(([chr(i) for i in Value if i]))
 

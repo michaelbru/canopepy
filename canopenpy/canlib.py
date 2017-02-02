@@ -4,7 +4,7 @@ import struct
 import logging
 import inspect
 import time
-from canlib import dict
+#from canlib import dict
 #------------------------------------------------------------------#
 # Canlib constants                                                 #
 #------------------------------------------------------------------#
@@ -136,16 +136,28 @@ canDRIVER_OFF                           = 0
 
 kvEVENT_TYPE_KEY                        = 1
 
-BaudTable = dict(
-(canBITRATE_1M, -1),
-(canBITRATE_500K,-2),
-(canBITRATE_250K,-3),
-(canBITRATE_125K,-4),
-(canBITRATE_100K,-5),
-(canBITRATE_62K,-6),
-(canBITRATE_50K,-7),
-(canBITRATE_83K,-8),
-(canBITRATE_10K,-9) )
+#BaudTable = dict(
+#(canBITRATE_1M, -1),
+#(canBITRATE_500K,-2),
+#(canBITRATE_250K,-3),
+#(canBITRATE_125K,-4),
+#(canBITRATE_100K,-5),
+#(canBITRATE_62K,-6),
+#(canBITRATE_50K,-7),
+#(canBITRATE_83K,-8),
+#(canBITRATE_10K,-9) )
+
+
+
+BaudTable = {1000000:canBITRATE_1M ,
+            500000:canBITRATE_500K,
+            250000:canBITRATE_250K,
+            125000:canBITRATE_125K,
+            100000:canBITRATE_100K,
+            62000:canBITRATE_62K,
+            50000:canBITRATE_50K,
+            83000:canBITRATE_83K,
+            10000:canBITRATE_10K }
 
 class canError(Exception):
     def __init__(self, canlib, canERR):
@@ -411,9 +423,17 @@ class canlib(object):
         flags  - A combination of canOPEN_xxx flags(for more information about flags for this function see canlib.h ) 
         
         Returns object of type canChannel of  opened circuit, or canERR_xxx (negative) if the call failed'''
+
+        #if channel in self.getNumberOfChannels():
+        ## Don't allow sharing of this circuit between applications
+        #self.ch = self.openChannel(channel, flags)#canlib.canOPEN_EXCLUSIVE)
+        #print ("Using channel: %s, EAN: %s" % 
+        #        (self.canlib.getChannelData_Name(), self.canlib.getChannelData_EAN()))
+
         self.fn = inspect.stack()[0][3]
         return canChannel(self, channel, flags)
 
+   
     def unloadLibrary(self):
         self.dll.canUnloadLibrary()
 
@@ -431,21 +451,30 @@ class canChannel(object):
         self.canlib.fn = 'openChannel'
         self.handle    = self.dll.canOpenChannel(channel, flags)
 
-    def open(self,channel,bitrate):
+    def open(self,bitrate):
+                '''
+                test whether the number of channel in correct 
+                if so then
+                open channel,set bus output control,set bus baud rate and open bus
+
+                
+                :param bitrate: baud rate of the channel
+                ;param flags: canlib flags
+                '''
                 # if channel is active open channel (kvaser)
                 try:
-                    if channel in self.canlib.getNumberOfChannels():
-                        # Don't allow sharing of this circuit between applications
-                        self.ch = self.openChannel(channel, canlib.canOPEN_ACCEPT_VIRTUAL)#canlib.canOPEN_EXCLUSIVE)
-                        print ("Using channel: %s, EAN: %s" % 
-                                (self.canlib.getChannelData_Name(), self.canlib.getChannelData_EAN()))
+                    #if channel in self.canlib.getNumberOfChannels():
+                    #    # Don't allow sharing of this circuit between applications
+                    #    self.ch = self.openChannel(channel, flags)#canlib.canOPEN_EXCLUSIVE)
+                    #    print ("Using channel: %s, EAN: %s" % 
+                    #            (self.canlib.getChannelData_Name(), self.canlib.getChannelData_EAN()))
 
-                        self.setBusOutputControl(canlib.canDRIVER_NORMAL)
+                        self.setBusOutputControl(canDRIVER_NORMAL)
                         baud = BaudTable[bitrate]
-                        self.ch.setBusParams(baud)
-                        self.ch.busOn()
-                        self.openedChannels.add(channel,self.ch)
-                        self.setCurrentChannel(channel)
+                        self.setBusParams(baud)
+                        self.busOn()
+                        #self.openedChannels.add(channel,self.ch)
+                        #self.setCurrentChannel(channel)
                 except canError as ce:
                     logging.error(ce)
                 except KeyError as ke:
@@ -689,6 +718,8 @@ canERR_xxx (negative) if failure
 
 if __name__ == '__main__':
     cl = canlib()
+    #ch = cl.openChannel(ch, canOPEN_ACCEPT_VIRTUAL)
+    
     channels = cl.getNumberOfChannels()
 
     print ("canlib version: %s" % cl.getVersion())
@@ -742,12 +773,13 @@ if __name__ == '__main__':
                 print (ex)
         try:
             ch1 = cl.openChannel(ch, canOPEN_ACCEPT_VIRTUAL)
-            print ("Using channel: %s, EAN: %s" % (ch1.getChannelData_Name(), ch1.getChannelData_EAN()))
+            #print ("Using channel: %s, EAN: %s" % (ch1.getChannelData_Name(), ch1.getChannelData_EAN()))
            
             ch1.setBusOutputControl(canDRIVER_NORMAL)
             ch1.setBusParams(canBITRATE_1M)
             ch1.busOn()
             chlist[ch]=ch1
+            #ch1.open(
         except (canError) as ex:
             print (ex)
 
@@ -788,3 +820,4 @@ if __name__ == '__main__':
 
 
 
+    

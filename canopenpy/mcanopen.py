@@ -1,4 +1,4 @@
-'''
+Ôªø'''
 Abbreviations
 --------------
 CAN:
@@ -152,7 +152,27 @@ SDO Upload, which can be split up into
 
 Abort SDO Transfer
 
+
+
+Emergency Object Services
+---------------------------
+Emergency object transmission follows the ‚Äúproducer ‚Äì consumer‚Äù push model as described in 6.3.3.
+The following object attributes are specified for emergency objects:
+‚Ä¢ user type: notifying device: producer
+receiving devices: consumer
+‚Ä¢ data type: STRUCTURE OF
+UNSIGNED(16) emergency_error_code,
+UNSIGNED(8) error_register (Object 1001H),
+ARRAY (5) of UNSIGNED(8) manufacturer_specific_error_field
+‚Ä¢ inhibit time: Application specific
+
+
+
+
 '''
+
+
+
 
 
 import struct
@@ -668,7 +688,7 @@ class CanOpen():
         SetSdo~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-        The Initiate SDO Download ñ Request
+        The Initiate SDO Download ÔøΩ Request
         ===================================
         The client (typically the node trying to configure a CANopen slave)
         sends this request to a SDO server (implemented within a CANopen slave)
@@ -681,7 +701,7 @@ class CanOpen():
         bit 1    - e: set to 1 for expedited transfer (data is in bytes 4-7)
         bit 0    - s: set to 1 if data size is indicated
         
-        The Initiate SDO Download ñ Response
+        The Initiate SDO Download ÔøΩ Response
         ====================================      
         This is the response sent back from the SDO server to the client indicating that the
         previously received download (write) request was processed successfully. 
@@ -730,27 +750,27 @@ class CanOpen():
             raise Exception('Bad response to SDO download init') 
 
 
-        '''The Download SDO Segment ñ Request
+        '''The Download SDO Segment ÔøΩ Request
            ==================================
         If in the initiation sequence a segmented transfer was negotiated, 
         this message is used to transmit the next segment (of up to 7 bytes)
         from client to SDO server.
 
         bit 7..5 - ccs: Client Command Specifier = 0
-        bit 4    - t: toggle bit ñ set to 0 in first segment, toggled with each subsequent request
+        bit 4    - t: toggle bit ÔøΩ set to 0 in first segment, toggled with each subsequent request
         bit 3..1 - n: number of data bytes in Byte 1..7 that do not contain data
         bit 0    - c: set to 1 if this is the last segment/fragment
        
         
         
-         The Download SDO Segment ñ Response 
+         The Download SDO Segment ÔøΩ Response 
          ====================================
          This is the response sent back from the SDO server to the client 
          indicating that the previously received download (write) segment 
          request was processed successfully
 
         bit 7..5 - scs: Server Command Specifier = 1
-        bit 4    - t: toggle bit ñ set to 0 in first segment, toggled with each subsequent request
+        bit 4    - t: toggle bit ÔøΩ set to 0 in first segment, toggled with each subsequent request
         bit 3..0 - x: reserved
        
        
