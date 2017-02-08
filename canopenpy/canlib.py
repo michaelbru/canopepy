@@ -600,6 +600,7 @@ canERR_xxx (negative) if failure
         dlc = c_uint()
         flag = c_uint()
         time = c_ulong()
+       # timeout  = c_long(timeout)
         returns = self.dll.canReadWait(self.handle, byref(id), byref(msg), byref(dlc),
                              byref(flag), byref(time), timeout)
         msgList = [msg[i] for i in range(len(msg))]

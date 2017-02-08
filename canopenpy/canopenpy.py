@@ -487,17 +487,18 @@ class CanOpen():
         try:
             self.can.write(nodeIdSend,msg)
             wait  = int(self.timeout/0.001)          
-            while   wait:              
-                ret = self.can.read(0)
+            while   wait:     
+                time.sleep(0.001)        
+                ret = self.can.read()#timeout = self.timeout*1000)
                 if ret[0] == nodeIdReply: 
-                    break
-                time.sleep(0.001)
+                    break           
                 wait-=1                        
             return bytearray(ret[1])
             raise   Exception('Timeout')    
         except Exception as ex:
+           res = None
            print ( ex )
-           pass
+           
 
     def read_can_frame(self):
         """
